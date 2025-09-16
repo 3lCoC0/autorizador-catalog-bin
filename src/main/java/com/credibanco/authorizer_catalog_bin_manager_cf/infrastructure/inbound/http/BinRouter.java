@@ -1,0 +1,4 @@
+package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.inbound.http;
+
+public class BinRouter {
+}
