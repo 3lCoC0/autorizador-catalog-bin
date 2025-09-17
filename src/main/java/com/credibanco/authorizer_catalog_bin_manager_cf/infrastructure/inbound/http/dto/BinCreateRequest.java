@@ -1,11 +1,15 @@
 package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.inbound.http.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+
+
 public record BinCreateRequest(
-        String bin,
-        String name,
+        @NotBlank @Pattern(regexp="\\d{6}|\\d{8}|\\d{9}") String bin,
+        @NotBlank String name,
         String typeBin,
         String typeAccount,
         String compensationCod,
         String description,
-        String createdBy
+        @NotBlank String createdBy
 ) {}

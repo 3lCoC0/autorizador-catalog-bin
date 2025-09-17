@@ -1,6 +1,7 @@
 package com.credibanco.authorizer_catalog_bin_manager_cf.domain.bin;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Objects;
 
 public record Bin(
@@ -11,8 +12,8 @@ public record Bin(
         String compensationCod,   // opcional
         String description,       // opcional
         String status,            // A|I
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt,
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt,
         String updatedBy
 ) {
     public Bin {
@@ -38,14 +39,14 @@ public record Bin(
     /** Creación (DDD): estado A y timestamps. */
     public static Bin createNew(String bin, String name, String typeBin, String typeAccount,
                                 String compensationCod, String description, String createdBy) {
-        var now = LocalDateTime.now();
+        var now = OffsetDateTime.now(ZoneOffset.UTC);
         return new Bin(bin, name, typeBin, typeAccount, compensationCod, description, "A", now, now, createdBy);
     }
 
     /** Rehidratación desde DB. */
     public static Bin rehydrate(String bin, String name, String typeBin, String typeAccount,
                                 String compensationCod, String description, String status,
-                                LocalDateTime createdAt, LocalDateTime updatedAt, String updatedBy) {
+                                OffsetDateTime  createdAt, OffsetDateTime  updatedAt, String updatedBy) {
         return new Bin(bin, name, typeBin, typeAccount, compensationCod, description, status,
                 createdAt, updatedAt, updatedBy);
     }
@@ -55,7 +56,7 @@ public record Bin(
         if (!Objects.equals(newStatus, "A") && !Objects.equals(newStatus, "I"))
             throw new IllegalArgumentException("status debe ser 'A' o 'I'");
         return new Bin(bin, name, typeBin, typeAccount, compensationCod, description,
-                newStatus, createdAt, LocalDateTime.now(), by);
+                newStatus, createdAt, OffsetDateTime.now(ZoneOffset.UTC), by);
     }
 
     /** Actualizar datos básicos (inmutable). */
@@ -70,7 +71,7 @@ public record Bin(
             throw new IllegalArgumentException("typeAccount debe ser de 2 dígitos");
 
         return new Bin(bin, newName, newTypeBin, newTypeAccount, newCompCod, newDescription,
-                status, createdAt, LocalDateTime.now(), by);
+                status, createdAt, OffsetDateTime.now(ZoneOffset.UTC), by);
     }
 
     private static void require(String v, String f) {
