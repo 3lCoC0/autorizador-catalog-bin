@@ -16,7 +16,7 @@ import static org.springframework.web.reactive.function.server.RequestPredicates
 public class BinRouter {
     private final BinHandler handler;
 
-    @Bean
+    @Bean("binRoutes")
     RouterFunction<ServerResponse> routes() {
         return RouterFunctions.route()
                 .POST("/v1/bins", accept(MediaType.APPLICATION_JSON), handler::create)

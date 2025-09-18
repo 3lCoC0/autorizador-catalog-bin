@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.reactive.TransactionalOperator;
 
 @Configuration
-public class UseCaseConfig {
+public class BinUseCaseConfig {
     @Bean
     public CreateBinUseCase createBinUseCase(BinRepository repo, TransactionalOperator tx) {return new CreateBinService(repo, tx);}
     @Bean

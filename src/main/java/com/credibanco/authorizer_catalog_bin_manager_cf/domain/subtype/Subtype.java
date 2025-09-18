@@ -1,6 +1,8 @@
 package com.credibanco.authorizer_catalog_bin_manager_cf.domain.subtype;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Objects;
 
 public record Subtype(
@@ -14,8 +16,8 @@ public record Subtype(
         String binExt,        // 6->3 díg, 8->1 díg, 9->null
         String binEfectivo,   // 9 díg, derivado de bin/binExt
         Long   subtypeId,     // asignado por secuencia en BD
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt,
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt,
         String updatedBy
 ) {
     public Subtype {
@@ -58,7 +60,7 @@ public record Subtype(
         String eff     = computeBinEfectivo(normBin, normExt);
         var now = LocalDateTime.now();
         return new Subtype(
-                subtypeCode, normBin, name, description, "A",
+                subtypeCode, normBin, name, description, "I",
                 ownerIdType, ownerIdNumber, normExt, eff, null, null, null, createdBy
         );
     }
@@ -73,7 +75,7 @@ public record Subtype(
         return new Subtype(
                 this.subtypeCode, this.bin, newName, newDescription, this.status,
                 newOwnerIdType, newOwnerIdNumber, normExt, eff, this.subtypeId,
-                this.createdAt, LocalDateTime.now(), by
+                this.createdAt, OffsetDateTime.now(ZoneOffset.UTC), by
         );
     }
 
@@ -84,14 +86,14 @@ public record Subtype(
         return new Subtype(
                 this.subtypeCode, this.bin, this.name, this.descripcion, newStatus,
                 this.ownerIdType, this.ownerIdNumber, this.binExt, this.binEfectivo, this.subtypeId,
-                this.createdAt, LocalDateTime.now(), by
+                this.createdAt, OffsetDateTime.now(ZoneOffset.UTC), by
         );
     }
 
     /** Rehidratación desde BD. */
     public static Subtype rehydrate(String subtypeCode, String bin, String name, String descripcion, String status,
                                     String ownerIdType, String ownerIdNumber, String binExt, String binEfectivo,
-                                    Long subtypeId, LocalDateTime createdAt, LocalDateTime updatedAt, String updatedBy) {
+                                    Long subtypeId, OffsetDateTime createdAt, OffsetDateTime updatedAt, String updatedBy) {
         return new Subtype(subtypeCode, bin, name, descripcion, status,
                 ownerIdType, ownerIdNumber, binExt, binEfectivo, subtypeId, createdAt, updatedAt, updatedBy);
     }

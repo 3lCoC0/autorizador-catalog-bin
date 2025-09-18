@@ -1,16 +1,12 @@
 package com.credibanco.authorizer_catalog_bin_manager_cf.application.subtype.use_case;
 
+import com.credibanco.authorizer_catalog_bin_manager_cf.application.subtype.port.inbound.CreateSubtypeUseCase;
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.subtype.port.outbound.BinReadOnlyRepository;
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.subtype.port.outbound.IdTypeReadOnlyRepository;
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.subtype.port.outbound.SubtypeRepository;
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.subtype.Subtype;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Mono;
-
-public interface CreateSubtypeUseCase {
-    Mono<Subtype> execute(String subtypeCode, String bin, String name, String descripcion,
-                          String ownerIdType, String ownerIdNumber, String binExt, String createdBy);
-}
 
 public record CreateSubtypeService(
         SubtypeRepository repo,
@@ -22,19 +18,17 @@ public record CreateSubtypeService(
     @Override
     public Mono<Subtype> execute(String subtypeCode, String bin, String name, String descripcion,
                                  String ownerIdType, String ownerIdNumber, String binExt, String createdBy) {
-
-        // Ensambla entidad en memoria (aplica normalización/6+3-8+1-9+0 y calcula BIN_EFECTIVO)
         Subtype draft = Subtype.createNew(subtypeCode, bin, name, descripcion,
                         ownerIdType, ownerIdNumber, binExt, createdBy)
-                .changeStatus("I", createdBy); // crear en I
+                .changeStatus("I", createdBy);
 
-        Mono<Boolean> fkBin        = binRepo.existsById(draft.bin());
-        Mono<Boolean> bin9Collision= (draft.bin().length()==6 || draft.bin().length()==8)
+        Mono<Boolean> fkBin         = binRepo.existsById(draft.bin());
+        Mono<Boolean> bin9Collision = (draft.bin().length()==6 || draft.bin().length()==8)
                 ? binRepo.existsById(draft.binEfectivo())
                 : Mono.just(false);
-        Mono<Boolean> fkIdType     = draft.ownerIdType()==null ? Mono.just(true) : idTypeRepo.existsById(draft.ownerIdType());
-        Mono<Boolean> pkExists     = repo.existsByPk(draft.bin(), draft.subtypeCode());
-        Mono<Boolean> extExists    = draft.binExt()==null ? Mono.just(false) : repo.existsByBinAndExt(draft.bin(), draft.binExt());
+        Mono<Boolean> fkIdType      = draft.ownerIdType()==null ? Mono.just(true) : idTypeRepo.existsById(draft.ownerIdType());
+        Mono<Boolean> pkExists      = repo.existsByPk(draft.bin(), draft.subtypeCode());
+        Mono<Boolean> extExists     = draft.binExt()==null ? Mono.just(false) : repo.existsByBinAndExt(draft.bin(), draft.binExt());
 
         return Mono.zip(fkBin, bin9Collision, fkIdType, pkExists, extExists)
                 .flatMap(t -> {

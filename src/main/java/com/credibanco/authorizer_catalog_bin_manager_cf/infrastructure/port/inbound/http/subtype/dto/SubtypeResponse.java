@@ -1,6 +1,6 @@
 package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.subtype.dto;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record SubtypeResponse(
         String subtypeCode,
@@ -13,7 +13,7 @@ public record SubtypeResponse(
         String binExt,
         String binEfectivo,
         Long   subtypeId,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt,
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt,
         String updatedBy
 ) {}

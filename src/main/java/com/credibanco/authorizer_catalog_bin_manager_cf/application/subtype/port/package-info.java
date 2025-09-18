@@ -1,1 +1,0 @@
-package com.credibanco.authorizer_catalog_bin_manager_cf.application.subtype.port;
