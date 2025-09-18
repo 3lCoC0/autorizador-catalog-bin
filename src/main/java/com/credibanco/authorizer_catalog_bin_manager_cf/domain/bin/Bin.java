@@ -5,13 +5,13 @@ import java.time.ZoneOffset;
 import java.util.Objects;
 
 public record Bin(
-        String bin,               // 6/8/9 dígitos
+        String bin,
         String name,
-        String typeBin,           // DEBITO|CREDITO|PREPAGO
-        String typeAccount,       // 2 dígitos
-        String compensationCod,   // opcional
-        String description,       // opcional
-        String status,            // A|I
+        String typeBin,
+        String typeAccount,
+        String compensationCod,
+        String description,
+        String status,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt,
         String updatedBy
