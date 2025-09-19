@@ -9,7 +9,7 @@ public record Subtype(
         String subtypeCode,   // 3 chars
         String bin,           // 6/8/9 dígitos (normalizado: solo números)
         String name,          // requerido
-        String descripcion,   // opcional
+        String description,   // opcional
         String status,        // 'A' | 'I'
         String ownerIdType,   // FK opcional
         String ownerIdNumber, // opcional
@@ -84,17 +84,17 @@ public record Subtype(
         if (!Objects.equals(newStatus, "A") && !Objects.equals(newStatus, "I"))
             throw new IllegalArgumentException("status debe ser 'A' o 'I'");
         return new Subtype(
-                this.subtypeCode, this.bin, this.name, this.descripcion, newStatus,
+                this.subtypeCode, this.bin, this.name, this.description, newStatus,
                 this.ownerIdType, this.ownerIdNumber, this.binExt, this.binEfectivo, this.subtypeId,
                 this.createdAt, OffsetDateTime.now(ZoneOffset.UTC), by
         );
     }
 
     /** Rehidratación desde BD. */
-    public static Subtype rehydrate(String subtypeCode, String bin, String name, String descripcion, String status,
+    public static Subtype rehydrate(String subtypeCode, String bin, String name, String description, String status,
                                     String ownerIdType, String ownerIdNumber, String binExt, String binEfectivo,
                                     Long subtypeId, OffsetDateTime createdAt, OffsetDateTime updatedAt, String updatedBy) {
-        return new Subtype(subtypeCode, bin, name, descripcion, status,
+        return new Subtype(subtypeCode, bin, name, description, status,
                 ownerIdType, ownerIdNumber, binExt, binEfectivo, subtypeId, createdAt, updatedAt, updatedBy);
     }
 

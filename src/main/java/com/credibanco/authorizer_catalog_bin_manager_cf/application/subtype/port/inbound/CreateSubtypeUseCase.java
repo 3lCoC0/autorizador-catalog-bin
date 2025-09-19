@@ -4,6 +4,6 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.domain.subtype.Subtype;
 import reactor.core.publisher.Mono;
 
 public interface CreateSubtypeUseCase {
-    Mono<Subtype> execute(String subtypeCode, String bin, String name, String descripcion,
+    Mono<Subtype> execute(String subtypeCode, String bin, String name, String description,
                           String ownerIdType, String ownerIdNumber, String binExt, String createdBy);
 }

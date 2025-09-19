@@ -6,7 +6,6 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.application.subtype.port
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.subtype.port.outbound.IdTypeReadOnlyRepository;
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.subtype.port.outbound.SubtypeRepository;
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.subtype.use_case.*;
-
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.reactive.TransactionalOperator;
@@ -20,19 +19,25 @@ public class SubtypeUseCaseConfig {
             BinReadOnlyRepository binRepo,
             IdTypeReadOnlyRepository idTypeRepo,
             TransactionalOperator tx
-    ) { return new CreateSubtypeService(repo, binRepo, idTypeRepo, tx); }
+    ) {
+        return new CreateSubtypeService(repo, binRepo, idTypeRepo, tx);
+    }
 
     @Bean
     public UpdateSubtypeBasicsUseCase updateSubtypeBasicsUseCase(
             SubtypeRepository repo, TransactionalOperator tx
-    ) { return new UpdateSubtypeBasicsService(repo, tx); }
+    ) {
+        return new UpdateSubtypeBasicsService(repo, tx);
+    }
 
     @Bean
     public ChangeSubtypeStatusUseCase changeSubtypeStatusUseCase(
             SubtypeRepository repo,
             AgencyReadOnlyRepository agencyRepo,
             TransactionalOperator tx
-    ) { return new ChangeSubtypeStatusService(repo, agencyRepo, tx); }
+    ) {
+        return new ChangeSubtypeStatusService(repo, agencyRepo, tx);
+    }
 
     @Bean
     public GetSubtypeUseCase getSubtypeUseCase(SubtypeRepository repo) {
@@ -40,7 +45,10 @@ public class SubtypeUseCaseConfig {
     }
 
     @Bean
-    public ListSubtypesUseCase listSubtypesUseCase(SubtypeRepository repo) {
-        return new ListSubtypesService(repo);
+    public ListSubtypesUseCase listSubtypesUseCase(
+            SubtypeRepository repo,
+            BinReadOnlyRepository binRepo
+    ) {
+        return new ListSubtypesService(repo, binRepo);
     }
 }

@@ -21,7 +21,7 @@ public class SubtypeRouter {
     RouterFunction<ServerResponse> subtypeRoutes() {
         return RouterFunctions.route()
                 .POST("/v1/subtypes", accept(MediaType.APPLICATION_JSON), handler::create)
-                .GET ("/v1/subtypes", accept(MediaType.APPLICATION_JSON), handler::list)
+                .GET ("/v1/bins/{bin}/subtypes", accept(MediaType.APPLICATION_JSON), handler::listByBin) // ← nuevo
                 .GET ("/v1/subtypes/{bin}/{code}", accept(MediaType.APPLICATION_JSON), handler::get)
                 .PUT ("/v1/subtypes/{bin}/{code}", accept(MediaType.APPLICATION_JSON), handler::update)
                 .PUT ("/v1/subtypes/{bin}/{code}/status", accept(MediaType.APPLICATION_JSON), handler::changeStatus)

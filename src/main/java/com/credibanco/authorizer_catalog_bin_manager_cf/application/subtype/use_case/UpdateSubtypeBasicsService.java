@@ -15,14 +15,14 @@ public record UpdateSubtypeBasicsService(
 
     @Override
     public Mono<Subtype> execute(String bin, String subtypeCode,
-                                 String name, String descripcion,
+                                 String name, String description,
                                  String ownerIdType, String ownerIdNumber,
                                  String newBinExt, String updatedBy) {
 
         return repo.findByPk(bin, subtypeCode)
                 .switchIfEmpty(Mono.error(new NoSuchElementException("SUBTYPE no encontrado")))
                 .flatMap(current -> {
-                    Subtype updated = current.updateBasics(name, descripcion, ownerIdType, ownerIdNumber, newBinExt, updatedBy);
+                    Subtype updated = current.updateBasics(name, description, ownerIdType, ownerIdNumber, newBinExt, updatedBy);
 
                     boolean extChanged = (current.binExt() == null && updated.binExt() != null)
                             || (current.binExt() != null && !current.binExt().equals(updated.binExt()));

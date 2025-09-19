@@ -36,7 +36,7 @@ public class SubtypeR2dbcRepository implements SubtypeRepository {
                     row.get("subtype_code", String.class),
                     row.get("bin",           String.class),
                     row.get("name",          String.class),
-                    row.get("descripcion",   String.class),
+                    row.get("description",   String.class),
                     row.get("status",        String.class),
                     row.get("owner_id_type", String.class),
                     row.get("owner_id_number", String.class),
@@ -82,7 +82,7 @@ public class SubtypeR2dbcRepository implements SubtypeRepository {
     @Override
     public Mono<Subtype> findByPk(String bin, String subtypeCode) {
         return client.sql("""
-                SELECT SUBTYPE_CODE, BIN, NAME, DESCRIPCION, STATUS,
+                SELECT SUBTYPE_CODE, BIN, NAME, DESCRIPTION, STATUS,
                        OWNER_ID_TYPE, OWNER_ID_NUMBER, BIN_EXT, BIN_EFECTIVO,
                        SUBTYPE_ID, CREATED_AT, UPDATED_AT, UPDATED_BY
                   FROM SUBTYPE
@@ -101,7 +101,7 @@ public class SubtypeR2dbcRepository implements SubtypeRepository {
         int offset = p * s;
 
         var sb = new StringBuilder("""
-                SELECT SUBTYPE_CODE, BIN, NAME, DESCRIPCION, STATUS,
+                SELECT SUBTYPE_CODE, BIN, NAME, DESCRIPTION, STATUS,
                        OWNER_ID_TYPE, OWNER_ID_NUMBER, BIN_EXT, BIN_EFECTIVO,
                        SUBTYPE_ID, CREATED_AT, UPDATED_AT, UPDATED_BY
                   FROM SUBTYPE WHERE 1=1
@@ -130,18 +130,18 @@ public class SubtypeR2dbcRepository implements SubtypeRepository {
                ON (t.BIN = s.BIN AND t.SUBTYPE_CODE = s.SUBTYPE_CODE)
             WHEN MATCHED THEN UPDATE SET
                  t.NAME = :name,
-                 t.DESCRIPCION = :descripcion,
+                 t.DESCRIPTION = :description,
                  t.STATUS = :status,
                  t.OWNER_ID_TYPE = :owner_id_type,
                  t.OWNER_ID_NUMBER = :owner_id_number,
                  t.BIN_EXT = :bin_ext,
                  t.UPDATED_BY = :updated_by
             WHEN NOT MATCHED THEN INSERT
-                 (SUBTYPE_CODE, BIN, NAME, DESCRIPCION, STATUS,
+                 (SUBTYPE_CODE, BIN, NAME, DESCRIPTION, STATUS,
                   OWNER_ID_TYPE, OWNER_ID_NUMBER, BIN_EXT,
                   CREATED_AT, UPDATED_AT, UPDATED_BY)
             VALUES
-                 (:code, :bin, :name, :descripcion, :status,
+                 (:code, :bin, :name, :description, :status,
                   :owner_id_type, :owner_id_number, :bin_ext,
                   SYSTIMESTAMP, SYSTIMESTAMP, :updated_by)
             """)
@@ -152,8 +152,8 @@ public class SubtypeR2dbcRepository implements SubtypeRepository {
                 .bind("updated_by", e.updatedBy());
 
         // Opcionales: bind o bindNull como en BIN
-        if (e.descripcion() != null) spec = spec.bind("descripcion", e.descripcion());
-        else                         spec = spec.bindNull("descripcion", String.class);
+        if (e.description() != null) spec = spec.bind("description", e.description());
+        else                         spec = spec.bindNull("description", String.class);
 
         if (e.ownerIdType() != null) spec = spec.bind("owner_id_type", e.ownerIdType());
         else                         spec = spec.bindNull("owner_id_type", String.class);

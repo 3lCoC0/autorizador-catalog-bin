@@ -37,7 +37,7 @@ public class SubtypeHandler {
                         r.ownerIdType(), r.ownerIdNumber(), r.binExt(), r.createdBy()
                 ))
                 .map(s -> new SubtypeResponse(
-                        s.subtypeCode(), s.bin(), s.name(), s.descripcion(),
+                        s.subtypeCode(), s.bin(), s.name(), s.description(),
                         s.status(), s.ownerIdType(), s.ownerIdNumber(),
                         s.binExt(), s.binEfectivo(), s.subtypeId(),
                         s.createdAt(), s.updatedAt(), s.updatedBy()
@@ -49,16 +49,15 @@ public class SubtypeHandler {
                         .bodyValue(resp));
     }
 
-    public Mono<ServerResponse> list(ServerRequest req) {
-        String bin    = req.queryParam("bin").orElse(null);
-        String code   = req.queryParam("code").orElse(null);
+    public Mono<ServerResponse> listByBin(ServerRequest req) {
+        String bin    = req.pathVariable("bin");
         String status = req.queryParam("status").orElse(null);
         int page = req.queryParam("page").map(Integer::parseInt).orElse(0);
         int size = req.queryParam("size").map(Integer::parseInt).orElse(20);
 
-        Flux<SubtypeResponse> body = listUC.execute(bin, code, status, page, size)
+        var body = listUC.execute(bin, null, status, page, size)
                 .map(s -> new SubtypeResponse(
-                        s.subtypeCode(), s.bin(), s.name(), s.descripcion(),
+                        s.subtypeCode(), s.bin(), s.name(), s.description(),
                         s.status(), s.ownerIdType(), s.ownerIdNumber(),
                         s.binExt(), s.binEfectivo(), s.subtypeId(),
                         s.createdAt(), s.updatedAt(), s.updatedBy()
@@ -81,7 +80,7 @@ public class SubtypeHandler {
                         r.updatedBy()
                 ))
                 .map(s -> new SubtypeResponse(
-                        s.subtypeCode(), s.bin(), s.name(), s.descripcion(),
+                        s.subtypeCode(), s.bin(), s.name(), s.description(),
                         s.status(), s.ownerIdType(), s.ownerIdNumber(),
                         s.binExt(), s.binEfectivo(), s.subtypeId(),
                         s.createdAt(), s.updatedAt(), s.updatedBy()
@@ -97,7 +96,7 @@ public class SubtypeHandler {
 
         return getUC.execute(bin, code)
                 .map(s -> new SubtypeResponse(
-                        s.subtypeCode(), s.bin(), s.name(), s.descripcion(),
+                        s.subtypeCode(), s.bin(), s.name(), s.description(),
                         s.status(), s.ownerIdType(), s.ownerIdNumber(),
                         s.binExt(), s.binEfectivo(), s.subtypeId(),
                         s.createdAt(), s.updatedAt(), s.updatedBy()
@@ -115,7 +114,7 @@ public class SubtypeHandler {
                 .flatMap(validation::validate)
                 .flatMap(r -> changeStatusUC.execute(bin, code, r.status(), r.updatedBy()))
                 .map(s -> new SubtypeResponse(
-                        s.subtypeCode(), s.bin(), s.name(), s.descripcion(),
+                        s.subtypeCode(), s.bin(), s.name(), s.description(),
                         s.status(), s.ownerIdType(), s.ownerIdNumber(),
                         s.binExt(), s.binEfectivo(), s.subtypeId(),
                         s.createdAt(), s.updatedAt(), s.updatedBy()

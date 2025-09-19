@@ -16,9 +16,9 @@ public record CreateSubtypeService(
 ) implements CreateSubtypeUseCase {
 
     @Override
-    public Mono<Subtype> execute(String subtypeCode, String bin, String name, String descripcion,
+    public Mono<Subtype> execute(String subtypeCode, String bin, String name, String description,
                                  String ownerIdType, String ownerIdNumber, String binExt, String createdBy) {
-        Subtype draft = Subtype.createNew(subtypeCode, bin, name, descripcion,
+        Subtype draft = Subtype.createNew(subtypeCode, bin, name, description,
                         ownerIdType, ownerIdNumber, binExt, createdBy)
                 .changeStatus("I", createdBy);
 

@@ -5,7 +5,7 @@ import reactor.core.publisher.Mono;
 
 public interface UpdateSubtypeBasicsUseCase {
     Mono<Subtype> execute(String bin, String subtypeCode,
-                          String name, String descripcion,
+                          String name, String description,
                           String ownerIdType, String ownerIdNumber,
                           String newBinExt, String updatedBy);
 }
