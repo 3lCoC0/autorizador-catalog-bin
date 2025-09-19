@@ -18,8 +18,13 @@ public class AgencyUseCaseConfig {
 
     @Bean
     public UpdateAgencyUseCase updateAgencyUseCase(
-            AgencyRepository repo, TransactionalOperator tx
-    ) { return new UpdateAgencyService(repo, tx); }
+            AgencyRepository repo,
+            SubtypeReadOnlyRepository subtypeRepo,
+            TransactionalOperator tx
+    ) {
+        return new UpdateAgencyService(repo, subtypeRepo, tx);
+    }
+
 
     @Bean
     public ChangeAgencyStatusUseCase changeAgencyStatusUseCase(
@@ -27,12 +32,19 @@ public class AgencyUseCaseConfig {
     ) { return new ChangeAgencyStatusService(repo, subtypeRepo, tx); }
 
     @Bean
-    public GetAgencyUseCase getAgencyUseCase(AgencyRepository repo) {
-        return new GetAgencyService(repo);
+    public GetAgencyUseCase getAgencyUseCase(
+            AgencyRepository repo,
+            SubtypeReadOnlyRepository subtypeRepo
+    ) {
+        return new GetAgencyService(repo, subtypeRepo);
     }
 
+
     @Bean
-    public ListAgenciesUseCase listAgenciesUseCase(AgencyRepository repo) {
-        return new ListAgenciesService(repo);
+    public ListAgenciesUseCase listAgenciesUseCase(
+            AgencyRepository repo,
+            SubtypeReadOnlyRepository subtypeRepo
+    ) {
+        return new ListAgenciesService(repo, subtypeRepo);
     }
 }

@@ -84,17 +84,35 @@ public class AgencyHandler {
     }
 
     public Mono<ServerResponse> list(ServerRequest req) {
-        String subtype = req.queryParam("subtypeCode").orElse(null);
-        String status  = req.queryParam("status").orElse(null);
-        String search  = req.queryParam("search").orElse(null);
+
+        String subtype = req.queryParam("subtypeCode")
+                .orElseThrow(() -> new IllegalArgumentException("subtypeCode es requerido"));
+
+
+        String status = req.queryParam("status")
+                .map(String::trim)
+                .map(String::toUpperCase)
+                .filter(s -> !s.isEmpty())
+                .orElse(null);
+
+        if ("ALL".equals(status)) {
+            status = null;
+        } else if (status != null && !"A".equals(status) && !"I".equals(status)) {
+            return Mono.error(new IllegalArgumentException("status debe ser 'A', 'I' o 'ALL'"));
+        }
+
+        String search = req.queryParam("search").orElse(null);
         int page = req.queryParam("page").map(Integer::parseInt).orElse(0);
         int size = req.queryParam("size").map(Integer::parseInt).orElse(20);
 
-        Flux<AgencyResponse> body = listUC.execute(subtype, status, search, page, size)
+        var body = listUC.execute(subtype, status, search, page, size)
                 .map(this::toResponse);
 
-        return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).body(body, AgencyResponse.class);
+        return ServerResponse.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body, AgencyResponse.class);
     }
+
 
     private AgencyResponse toResponse(Agency a) {
         return new AgencyResponse(

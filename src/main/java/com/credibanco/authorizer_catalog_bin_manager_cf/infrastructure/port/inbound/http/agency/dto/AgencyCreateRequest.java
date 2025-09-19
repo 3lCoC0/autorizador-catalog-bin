@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Size;
 
 public record AgencyCreateRequest(
         @NotBlank @Size(max=3)  String subtypeCode,
-        @NotBlank @Size(max=20) String agencyCode,
+        @NotBlank @Size(max=2) String agencyCode,
         @NotBlank @Size(max=120) String name,
         @Size(max=20)  String agencyNit,
         @Size(max=200) String address,
