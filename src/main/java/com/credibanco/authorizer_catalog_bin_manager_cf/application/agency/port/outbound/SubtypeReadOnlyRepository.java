@@ -3,5 +3,6 @@ package com.credibanco.authorizer_catalog_bin_manager_cf.application.agency.port
 import reactor.core.publisher.Mono;
 
 public interface SubtypeReadOnlyRepository {
-    Mono<Boolean> isActive(String subtypeCode);
+    Mono<Boolean> isActive(String subtypeCode);     // dejamos este por si se usa en otro lado
+    Mono<Boolean> existsByCode(String subtypeCode); // NUEVO: existencia sin importar status
 }

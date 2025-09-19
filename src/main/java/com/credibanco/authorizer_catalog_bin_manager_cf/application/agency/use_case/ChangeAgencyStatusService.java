@@ -18,16 +18,17 @@ public record ChangeAgencyStatusService(
         if (!"A".equals(newStatus) && !"I".equals(newStatus))
             return Mono.error(new IllegalArgumentException("status inválido"));
 
-        Mono<Void> ensureSubtypeActive = "A".equals(newStatus)
-                ? subtypeRepo.isActive(subtypeCode).flatMap(a -> a ? Mono.empty()
-                : Mono.error(new IllegalStateException("No se puede activar: SUBTYPE inactivo")))
-                : Mono.empty();
+        // Solo aseguramos que el SUBTYPE exista (independiente del status)
+        Mono<Void> ensureSubtypeExists = subtypeRepo.existsByCode(subtypeCode)
+                .flatMap(exists -> exists ? Mono.empty()
+                        : Mono.error(new IllegalArgumentException("SUBTYPE no existe")));
 
         return repo.findByPk(subtypeCode, agencyCode)
-                .switchIfEmpty(Mono.error(new NoSuchElementException("AGENCY no encontrada")))
-                .flatMap(current -> ensureSubtypeActive.thenReturn(current))
+                .switchIfEmpty(Mono.error(new java.util.NoSuchElementException("AGENCY no encontrada")))
+                .flatMap(cur -> ensureSubtypeExists.thenReturn(cur))
                 .map(cur -> cur.changeStatus(newStatus, by))
                 .flatMap(repo::save)
                 .as(tx::transactional);
     }
 }
+

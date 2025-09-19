@@ -15,13 +15,13 @@ public record CreateAgencyService(
 
     @Override
     public Mono<Agency> execute(Agency draft) {
-        return subtypeRepo.isActive(draft.subtypeCode())
-                .flatMap(active -> active
+        return subtypeRepo.existsByCode(draft.subtypeCode())
+                .flatMap(exists -> exists
                         ? repo.existsByPk(draft.subtypeCode(), draft.agencyCode())
-                        .flatMap(exists -> exists
+                        .flatMap(dup -> dup
                                 ? Mono.error(new IllegalStateException("Agency ya existe"))
                                 : repo.save(draft))
-                        : Mono.error(new IllegalStateException("No se puede crear: SUBTYPE inactivo o inexistente"))
+                        : Mono.error(new IllegalArgumentException("SUBTYPE inexistente"))
                 )
                 .as(tx::transactional);
     }

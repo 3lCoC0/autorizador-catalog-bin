@@ -22,4 +22,17 @@ public class SubtypeR2dbcReadOnlyRepository implements SubtypeReadOnlyRepository
                 .map(m -> true)
                 .defaultIfEmpty(false);
     }
+
+    @Override
+    public Mono<Boolean> existsByCode(String subtypeCode) { // NUEVO
+        return db.sql("""
+                SELECT 1 FROM SUBTYPE
+                 WHERE SUBTYPE_CODE=:code
+                 FETCH FIRST 1 ROWS ONLY
+                """)
+                .bind("code", subtypeCode)
+                .fetch().first()
+                .map(m -> true)
+                .defaultIfEmpty(false);
+    }
 }
