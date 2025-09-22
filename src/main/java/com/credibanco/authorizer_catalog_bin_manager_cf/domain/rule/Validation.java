@@ -17,7 +17,8 @@ public record Validation(
         OffsetDateTime validFrom,
         OffsetDateTime validTo,
         OffsetDateTime createdAt,
-        OffsetDateTime updatedAt
+        OffsetDateTime updatedAt,
+        String updatedBy
 ) {
     public Validation {
         require(code, "code");
@@ -45,31 +46,31 @@ public record Validation(
     }
 
     public static Validation createNew(String code, String description, ValidationDataType type,
-                                       String valueFlag, Double valueNum, String valueText, String createdBy /* audit externo */) {
-        var now = OffsetDateTime.now(ZoneOffset.UTC);
+                                       String valueFlag, Double valueNum, String valueText, String createdBy ) {
+        var now = OffsetDateTime.now();
         return new Validation(null, code, description, type, valueFlag, valueNum, valueText,
-                "A", now, null, now, now);
+                "A", now, null, now, now,createdBy);
     }
 
     public static Validation rehydrate(Long id, String code, String description, ValidationDataType type,
                                        String flag, Double num, String text, String status,
                                        OffsetDateTime vf, OffsetDateTime vt,
-                                       OffsetDateTime createdAt, OffsetDateTime updatedAt) {
-        return new Validation(id, code, description, type, flag, num, text, status, vf, vt, createdAt, updatedAt);
+                                       OffsetDateTime createdAt, OffsetDateTime updatedAt,String updatedBy) {
+        return new Validation(id, code, description, type, flag, num, text, status, vf, vt, createdAt, updatedAt,updatedBy);
     }
 
-    public Validation changeStatus(String newStatus) {
+    public Validation changeStatus(String newStatus, String by) {
         if (!"A".equals(newStatus) && !"I".equals(newStatus))
             throw new IllegalArgumentException("status debe ser A|I");
         return new Validation(validationId, code, description, dataType, valueFlag, valueNum, valueText,
-                newStatus, validFrom, validTo, createdAt, OffsetDateTime.now(ZoneOffset.UTC));
+                newStatus, validFrom, validTo, createdAt, OffsetDateTime.now(),by);
     }
 
     public Validation updateBasics(String newDescription,
-                                   String newFlag, Double newNum, String newText) {
+                                   String newFlag, Double newNum, String newText,String by) {
         return new Validation(validationId, code, newDescription, dataType,
                 newFlag, newNum, newText, status, validFrom, validTo, createdAt,
-                OffsetDateTime.now(ZoneOffset.UTC));
+                OffsetDateTime.now(),by);
     }
 
     private static void require(String v, String f) {

@@ -15,5 +15,6 @@ public record ValidationResponse(
         OffsetDateTime validFrom,
         OffsetDateTime validTo,
         OffsetDateTime createdAt,
-        OffsetDateTime updatedAt
+        OffsetDateTime updatedAt,
+        String updatedBy
 ) {}

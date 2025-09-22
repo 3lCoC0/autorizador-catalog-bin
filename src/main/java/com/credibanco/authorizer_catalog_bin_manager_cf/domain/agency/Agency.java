@@ -46,7 +46,7 @@ public record Agency(
                                    String pinCustodianPrimary, String pinCustodianPrimaryId,
                                    String pinCustodianSecondary, String pinCustodianSecondaryId,
                                    String description, String createdBy) {
-        var now = OffsetDateTime.now(ZoneOffset.UTC);
+        var now = OffsetDateTime.now();
         return new Agency(
                 subtypeCode, agencyCode, name,
                 agencyNit, address, phone, municipalityDaneCode,
@@ -96,7 +96,7 @@ public record Agency(
                 cardCustodianSecondary, cardCustodianSecondaryId,
                 pinCustodianPrimary, pinCustodianPrimaryId,
                 pinCustodianSecondary, pinCustodianSecondaryId,
-                description, status, createdAt, OffsetDateTime.now(ZoneOffset.UTC), by
+                description, status, createdAt, OffsetDateTime.now(), by
         );
     }
 
@@ -111,7 +111,7 @@ public record Agency(
                 cardCustodianSecondary, cardCustodianSecondaryId,
                 pinCustodianPrimary, pinCustodianPrimaryId,
                 pinCustodianSecondary, pinCustodianSecondaryId,
-                description, newStatus, createdAt, OffsetDateTime.now(ZoneOffset.UTC), by
+                description, newStatus, createdAt, OffsetDateTime.now(), by
         );
     }
 

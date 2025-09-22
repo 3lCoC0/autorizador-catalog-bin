@@ -30,7 +30,7 @@ public record ValidationMap(
 
     public static ValidationMap createNew(String subtypeCode, String binEfectivo, Long validationId,
                                           Integer priority, String by) {
-        var now = OffsetDateTime.now(ZoneOffset.UTC);
+        var now = OffsetDateTime.now();
         return new ValidationMap(null, subtypeCode, binEfectivo, validationId, priority, "A",
                 now, null, now, now, by);
     }
@@ -46,7 +46,7 @@ public record ValidationMap(
         if (!"A".equals(newStatus) && !"I".equals(newStatus))
             throw new IllegalArgumentException("status debe ser A|I");
         return new ValidationMap(mapId, subtypeCode, binEfectivo, validationId, priority, newStatus,
-                validFrom, validTo, createdAt, OffsetDateTime.now(ZoneOffset.UTC), by);
+                validFrom, validTo, createdAt, OffsetDateTime.now(), by);
     }
 
     private static void require(String v, String f) {

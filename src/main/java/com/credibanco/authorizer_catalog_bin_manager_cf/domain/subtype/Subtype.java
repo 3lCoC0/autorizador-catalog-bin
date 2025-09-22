@@ -75,7 +75,7 @@ public record Subtype(
         return new Subtype(
                 this.subtypeCode, this.bin, newName, newDescription, this.status,
                 newOwnerIdType, newOwnerIdNumber, normExt, eff, this.subtypeId,
-                this.createdAt, OffsetDateTime.now(ZoneOffset.UTC), by
+                this.createdAt, OffsetDateTime.now(), by
         );
     }
 
@@ -86,7 +86,7 @@ public record Subtype(
         return new Subtype(
                 this.subtypeCode, this.bin, this.name, this.description, newStatus,
                 this.ownerIdType, this.ownerIdNumber, this.binExt, this.binEfectivo, this.subtypeId,
-                this.createdAt, OffsetDateTime.now(ZoneOffset.UTC), by
+                this.createdAt, OffsetDateTime.now(), by
         );
     }
 

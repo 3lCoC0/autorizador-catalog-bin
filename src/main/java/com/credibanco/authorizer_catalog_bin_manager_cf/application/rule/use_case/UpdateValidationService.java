@@ -9,10 +9,10 @@ import java.util.NoSuchElementException;
 
 public record UpdateValidationService(ValidationRepository repo) implements UpdateValidationUseCase {
     @Override
-    public Mono<Validation> execute(String code, String description, String flag, Double num, String text) {
+    public Mono<Validation> execute(String code, String description, String flag, Double num, String text,String updatedBy) {
         return repo.findByCode(code)
                 .switchIfEmpty(Mono.error(new NoSuchElementException("Validation no encontrada")))
-                .map(v -> v.updateBasics(description, flag, num, text))
+                .map(v -> v.updateBasics(description, flag, num, text,updatedBy))
                 .flatMap(repo::save);
     }
 }

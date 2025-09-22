@@ -10,12 +10,12 @@ import java.util.NoSuchElementException;
 
 public record ChangeValidationStatusService(ValidationRepository repo, TransactionalOperator tx)
         implements ChangeValidationStatusUseCase {
-    @Override public Mono<Validation> execute(String code, String newStatus) {
+    @Override public Mono<Validation> execute(String code, String newStatus,String by) {
         if (!"A".equals(newStatus) && !"I".equals(newStatus))
             return Mono.error(new IllegalArgumentException("status inválido"));
         return repo.findByCode(code)
                 .switchIfEmpty(Mono.error(new NoSuchElementException("Validation no encontrada")))
-                .map(v -> v.changeStatus(newStatus))
+                .map(v -> v.changeStatus(newStatus,by))
                 .flatMap(repo::save)
                 .as(tx::transactional);
     }

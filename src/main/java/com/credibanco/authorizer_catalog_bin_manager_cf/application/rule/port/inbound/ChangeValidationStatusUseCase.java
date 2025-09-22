@@ -3,5 +3,5 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule.Validation;
 import reactor.core.publisher.Mono;
 
 public interface ChangeValidationStatusUseCase {
-    Mono<Validation> execute(String code, String newStatus);
+    Mono<Validation> execute(String code, String newStatus,String by);
 }

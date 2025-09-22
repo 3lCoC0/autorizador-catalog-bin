@@ -165,7 +165,6 @@ public class R2dbcAgencyRepository implements AgencyRepository {
                 .bind("status", a.status())
                 .bind("by", a.updatedBy());
 
-        // binds opcionales
         spec = bindOrNull(spec, "nit", a.agencyNit());
         spec = bindOrNull(spec, "addr", a.address());
         spec = bindOrNull(spec, "phone", a.phone());

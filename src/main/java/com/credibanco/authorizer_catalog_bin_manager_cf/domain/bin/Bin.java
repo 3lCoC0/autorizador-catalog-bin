@@ -39,7 +39,7 @@ public record Bin(
     /** Creación (DDD): estado A y timestamps. */
     public static Bin createNew(String bin, String name, String typeBin, String typeAccount,
                                 String compensationCod, String description, String createdBy) {
-        var now = OffsetDateTime.now(ZoneOffset.UTC);
+        var now = OffsetDateTime.now();
         return new Bin(bin, name, typeBin, typeAccount, compensationCod, description, "A", now, now, createdBy);
     }
 
@@ -56,7 +56,7 @@ public record Bin(
         if (!Objects.equals(newStatus, "A") && !Objects.equals(newStatus, "I"))
             throw new IllegalArgumentException("status debe ser 'A' o 'I'");
         return new Bin(bin, name, typeBin, typeAccount, compensationCod, description,
-                newStatus, createdAt, OffsetDateTime.now(ZoneOffset.UTC), by);
+                newStatus, createdAt, OffsetDateTime.now(), by);
     }
 
     /** Actualizar datos básicos (inmutable). */
@@ -71,7 +71,7 @@ public record Bin(
             throw new IllegalArgumentException("typeAccount debe ser de 2 dígitos");
 
         return new Bin(bin, newName, newTypeBin, newTypeAccount, newCompCod, newDescription,
-                status, createdAt, OffsetDateTime.now(ZoneOffset.UTC), by);
+                status, createdAt, OffsetDateTime.now(), by);
     }
 
     private static void require(String v, String f) {

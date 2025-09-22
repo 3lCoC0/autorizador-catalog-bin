@@ -39,7 +39,7 @@ public class RuleHandler {
         var code = req.pathVariable("code");
         return req.bodyToMono(ValidationUpdateRequest.class)
                 .flatMap(validation::validate)
-                .flatMap(r -> updateV.execute(code, r.description(), r.valueFlag(), r.valueNum(), r.valueText()))
+                .flatMap(r -> updateV.execute(code, r.description(), r.valueFlag(), r.valueNum(), r.valueText(),r.updatedBy()))
                 .map(this::toResp)
                 .flatMap(resp -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValue(resp));
     }
@@ -48,7 +48,7 @@ public class RuleHandler {
         var code = req.pathVariable("code");
         return req.bodyToMono(ValidationStatusRequest.class)
                 .flatMap(validation::validate)
-                .flatMap(r -> changeVStatus.execute(code, r.status()))
+                .flatMap(r -> changeVStatus.execute(code, r.status(),r.updatedBy()))
                 .map(this::toResp)
                 .flatMap(resp -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValue(resp));
     }
@@ -102,7 +102,7 @@ public class RuleHandler {
         return new ValidationResponse(
                 v.validationId(), v.code(), v.description(), v.dataType(),
                 v.valueFlag(), v.valueNum(), v.valueText(),
-                v.status(), v.validFrom(), v.validTo(), v.createdAt(), v.updatedAt()
+                v.status(), v.validFrom(), v.validTo(), v.createdAt(), v.updatedAt(),v.updatedBy()
         );
     }
 }

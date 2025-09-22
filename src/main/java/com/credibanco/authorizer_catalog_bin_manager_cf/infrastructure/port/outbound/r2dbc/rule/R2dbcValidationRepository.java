@@ -40,7 +40,8 @@ public class R2dbcValidationRepository implements ValidationRepository {
                     toOffset(r,"valid_from"),
                     toOffset(r,"valid_to"),
                     toOffset(r,"created_at"),
-                    toOffset(r,"updated_at")
+                    toOffset(r,"updated_at"),
+                    r.get("updated_by", String.class)
             );
 
     @Override public Mono<Boolean> existsByCode(String code) {
@@ -80,7 +81,7 @@ public class R2dbcValidationRepository implements ValidationRepository {
     @Override public Mono<Validation> findByCode(String code) {
         return db.sql("""
                 SELECT VALIDATION_ID, CODE, DESCRIPTION, DATA_TYPE, VALUE_FLAG, VALUE_NUM, VALUE_TEXT,
-                       STATUS, VALID_FROM, VALID_TO, CREATED_AT, UPDATED_AT
+                       STATUS, VALID_FROM, VALID_TO, CREATED_AT, UPDATED_AT,UPDATED_BY
                   FROM SUBTYPE_VALIDATION WHERE CODE=:c
                 """).bind("c", code).map(MAPPER).one();
     }
@@ -88,7 +89,7 @@ public class R2dbcValidationRepository implements ValidationRepository {
     @Override public Mono<Validation> findById(Long id) {
         return db.sql("""
                 SELECT VALIDATION_ID, CODE, DESCRIPTION, DATA_TYPE, VALUE_FLAG, VALUE_NUM, VALUE_TEXT,
-                       STATUS, VALID_FROM, VALID_TO, CREATED_AT, UPDATED_AT
+                       STATUS, VALID_FROM, VALID_TO, CREATED_AT, UPDATED_AT,UPDATED_BY
                   FROM SUBTYPE_VALIDATION WHERE VALIDATION_ID=:id
                 """).bind("id", id).map(MAPPER).one();
     }
@@ -97,7 +98,7 @@ public class R2dbcValidationRepository implements ValidationRepository {
         int p=Math.max(0,page), s=Math.max(1,size), off=p*s;
         var sb = new StringBuilder("""
                 SELECT VALIDATION_ID, CODE, DESCRIPTION, DATA_TYPE, VALUE_FLAG, VALUE_NUM, VALUE_TEXT,
-                       STATUS, VALID_FROM, VALID_TO, CREATED_AT, UPDATED_AT
+                       STATUS, VALID_FROM, VALID_TO, CREATED_AT, UPDATED_AT,UPDATED_BY
                   FROM SUBTYPE_VALIDATION WHERE 1=1
                 """);
         if (status!=null) sb.append(" AND STATUS=:st");
