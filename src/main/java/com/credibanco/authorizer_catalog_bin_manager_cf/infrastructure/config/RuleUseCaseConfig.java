@@ -24,7 +24,9 @@ public class RuleUseCaseConfig {
                                   TransactionalOperator tx) {
         return new MapRuleService(vr, mr, sr, tx);
     }
-    @Bean ListRulesForSubtypeUseCase listRulesForSubtypeUseCase(ValidationMapRepository mr) {
+
+    @Bean
+    ListRulesForSubtypeUseCase listRulesForSubtypeUseCase(ValidationMapRepository mr) {
         return new ListRulesForSubtypeService(mr);
     }
 }

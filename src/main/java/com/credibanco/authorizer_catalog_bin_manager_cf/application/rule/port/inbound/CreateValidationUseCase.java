@@ -4,6 +4,5 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule.ValidationDa
 import reactor.core.publisher.Mono;
 
 public interface CreateValidationUseCase {
-    Mono<Validation> execute(String code, String description, ValidationDataType type,
-                             String valueFlag, Double valueNum, String valueText);
+    Mono<Validation> execute(String code, String description, ValidationDataType type);
 }

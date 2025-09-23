@@ -1,16 +1,16 @@
 package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.rule.dto;
 
-import com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule.ValidationDataType;
 import java.time.OffsetDateTime;
 
-public record ValidationResponse(
+public record ValidationMapResponse(
+        Long mapId,
+        String subtypeCode,
+        String bin,
         Long validationId,
-        String code,
-        String description,
-        ValidationDataType dataType,
         String status,
-        OffsetDateTime validFrom,
-        OffsetDateTime validTo,
+        String valueFlag,
+        Double valueNum,
+        String valueText,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt,
         String updatedBy

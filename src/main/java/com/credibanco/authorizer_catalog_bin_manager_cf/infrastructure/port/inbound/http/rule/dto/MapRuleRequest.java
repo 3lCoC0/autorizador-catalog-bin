@@ -3,6 +3,9 @@ package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inb
 import jakarta.validation.constraints.*;
 
 public record MapRuleRequest(
-        @NotNull @Min(1) Integer priority,
+        @NotBlank String subtypeCode,
+        @NotBlank String bin,
+        @NotBlank String code,
+        Object value,
         @NotBlank String updatedBy
 ) {}

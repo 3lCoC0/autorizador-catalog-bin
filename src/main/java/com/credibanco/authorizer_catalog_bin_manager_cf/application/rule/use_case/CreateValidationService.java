@@ -10,9 +10,8 @@ import reactor.core.publisher.Mono;
 public record CreateValidationService(ValidationRepository repo, TransactionalOperator tx)
         implements CreateValidationUseCase {
     @Override
-    public Mono<Validation> execute(String code, String description, ValidationDataType type,
-                                    String valueFlag, Double valueNum, String valueText) {
-        var draft = Validation.createNew(code, description, type, valueFlag, valueNum, valueText, "system");
+    public Mono<Validation> execute(String code, String description, ValidationDataType type) {
+        var draft = Validation.createNew(code, description, type, "system");
         return repo.existsByCode(code)
                 .flatMap(exists -> exists
                         ? Mono.error(new IllegalStateException("Validation code ya existe"))
@@ -20,3 +19,4 @@ public record CreateValidationService(ValidationRepository repo, TransactionalOp
                 .as(tx::transactional);
     }
 }
+

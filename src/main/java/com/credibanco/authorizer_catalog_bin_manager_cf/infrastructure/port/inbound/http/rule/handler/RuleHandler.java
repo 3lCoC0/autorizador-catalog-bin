@@ -2,6 +2,7 @@ package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inb
 
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.rule.port.inbound.*;
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule.Validation;
+import com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule.ValidationMap;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.rule.dto.*;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.validation.ValidationUtil;
 import lombok.RequiredArgsConstructor;
@@ -26,8 +27,7 @@ public class RuleHandler {
     public Mono<ServerResponse> createValidation(ServerRequest req) {
         return req.bodyToMono(ValidationCreateRequest.class)
                 .flatMap(validation::validate)
-                .flatMap(r -> createV.execute(r.code(), r.description(), r.dataType(),
-                        r.valueFlag(), r.valueNum(), r.valueText()))
+                .flatMap(r -> createV.execute(r.code(), r.description(), r.dataType()))
                 .map(this::toResp)
                 .flatMap(resp -> ServerResponse.created(
                                 req.uriBuilder().path("/{code}").build(resp.code()))
@@ -39,7 +39,7 @@ public class RuleHandler {
         var code = req.pathVariable("code");
         return req.bodyToMono(ValidationUpdateRequest.class)
                 .flatMap(validation::validate)
-                .flatMap(r -> updateV.execute(code, r.description(), r.valueFlag(), r.valueNum(), r.valueText(),r.updatedBy()))
+                .flatMap(r -> updateV.execute(code, r.description(), r.updatedBy()))
                 .map(this::toResp)
                 .flatMap(resp -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValue(resp));
     }
@@ -69,22 +69,27 @@ public class RuleHandler {
     }
 
     public Mono<ServerResponse> attachRule(ServerRequest req) {
-        var st  = req.pathVariable("subtypeCode");
-        var eff = req.pathVariable("binEfectivo");
-        var code= req.pathVariable("code");
         return req.bodyToMono(MapRuleRequest.class)
-                .flatMap(validation::validate)
-                .flatMap(r -> mapRuleUC.attach(st, eff, code, r.priority(), r.updatedBy()))
-                .flatMap(m -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValue(m));
+                .flatMap(validation::validate) // aquí solo valida requeridos y no-nulos
+                .flatMap(r -> mapRuleUC.attach(
+                        r.subtypeCode(),
+                        r.bin(),
+                        r.code(),
+                        r.value(),       // <- único valor
+                        r.updatedBy()
+                ))
+                .flatMap(m -> ServerResponse.ok()
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(m));
     }
 
     public Mono<ServerResponse> changeRuleStatus(ServerRequest req) {
         var st  = req.pathVariable("subtypeCode");
-        var eff = req.pathVariable("binEfectivo");
+        var bin = req.pathVariable("bin");
         var code= req.pathVariable("code");
         return req.bodyToMono(ValidationStatusRequest.class)
                 .flatMap(validation::validate)
-                .flatMap(r -> mapRuleUC.changeStatus(st, eff, code, r.status(), "api"))
+                .flatMap(r -> mapRuleUC.changeStatus(st, bin, code, r.status(), "api"))
                 .flatMap(m -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValue(m));
     }
 
@@ -94,15 +99,22 @@ public class RuleHandler {
         var status = req.queryParam("status").orElse("A");
         int page = req.queryParam("page").map(Integer::parseInt).orElse(0);
         int size = req.queryParam("size").map(Integer::parseInt).orElse(100);
-        var body = listRulesUC.execute(st, eff, status, page, size).map(this::toResp);
+        var body = listRulesUC.execute(st, eff, status, page, size).map(this::toMapResp);
         return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).body(body, ValidationResponse.class);
     }
 
     private ValidationResponse toResp(Validation v) {
         return new ValidationResponse(
                 v.validationId(), v.code(), v.description(), v.dataType(),
-                v.valueFlag(), v.valueNum(), v.valueText(),
                 v.status(), v.validFrom(), v.validTo(), v.createdAt(), v.updatedAt(),v.updatedBy()
+        );
+    }
+
+    private ValidationMapResponse toMapResp(ValidationMap m) {
+        return new ValidationMapResponse(
+                m.mapId(), m.subtypeCode(), m.bin(), m.validationId(),
+                m.status(), m.valueFlag(), m.valueNum(), m.valueText(),
+                m.createdAt(), m.updatedAt(), m.updatedBy()
         );
     }
 }

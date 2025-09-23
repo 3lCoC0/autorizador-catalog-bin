@@ -1,19 +1,13 @@
-// domain/rule/Validation.java
 package com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule;
-
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.Objects;
 
 public record Validation(
-        Long   validationId,    // PK
-        String code,            // unique
+        Long validationId,
+        String code,
         String description,
         ValidationDataType dataType,
-        String valueFlag,       // SI/NO (para BOOL)
-        Double valueNum,        // para NUMBER
-        String valueText,       // para TEXT
-        String status,          // 'A'|'I'
+        String status,                 // 'A'|'I'
         OffsetDateTime validFrom,
         OffsetDateTime validTo,
         OffsetDateTime createdAt,
@@ -26,51 +20,30 @@ public record Validation(
         require(status, "status");
         if (!status.equals("A") && !status.equals("I"))
             throw new IllegalArgumentException("status debe ser A|I");
-        // invariantes de tipo
-        switch (dataType) {
-            case BOOL -> {
-                if (!"SI".equalsIgnoreCase(valueFlag) && !"NO".equalsIgnoreCase(valueFlag))
-                    throw new IllegalArgumentException("value_flag debe ser SI/NO para BOOL");
-                valueNum  = null; valueText = null;
-            }
-            case NUMBER -> {
-                if (valueNum == null) throw new IllegalArgumentException("value_num requerido para NUMBER");
-                valueFlag = null; valueText = null;
-            }
-            case TEXT -> {
-                if (valueText == null || valueText.isBlank())
-                    throw new IllegalArgumentException("value_text requerido para TEXT");
-                valueFlag = null; valueNum = null;
-            }
-        }
     }
 
-    public static Validation createNew(String code, String description, ValidationDataType type,
-                                       String valueFlag, Double valueNum, String valueText, String createdBy ) {
+    public static Validation createNew(String code, String description, ValidationDataType type, String createdBy) {
         var now = OffsetDateTime.now();
-        return new Validation(null, code, description, type, valueFlag, valueNum, valueText,
-                "A", now, null, now, now,createdBy);
+        return new Validation(null, code, description, type,
+                "A", now, null, now, now, createdBy);
     }
 
     public static Validation rehydrate(Long id, String code, String description, ValidationDataType type,
-                                       String flag, Double num, String text, String status,
-                                       OffsetDateTime vf, OffsetDateTime vt,
-                                       OffsetDateTime createdAt, OffsetDateTime updatedAt,String updatedBy) {
-        return new Validation(id, code, description, type, flag, num, text, status, vf, vt, createdAt, updatedAt,updatedBy);
+                                       String status, OffsetDateTime vf, OffsetDateTime vt,
+                                       OffsetDateTime createdAt, OffsetDateTime updatedAt, String updatedBy) {
+        return new Validation(id, code, description, type, status, vf, vt, createdAt, updatedAt, updatedBy);
     }
 
     public Validation changeStatus(String newStatus, String by) {
         if (!"A".equals(newStatus) && !"I".equals(newStatus))
             throw new IllegalArgumentException("status debe ser A|I");
-        return new Validation(validationId, code, description, dataType, valueFlag, valueNum, valueText,
-                newStatus, validFrom, validTo, createdAt, OffsetDateTime.now(),by);
+        return new Validation(validationId, code, description, dataType,
+                newStatus, validFrom, validTo, createdAt, OffsetDateTime.now(), by);
     }
 
-    public Validation updateBasics(String newDescription,
-                                   String newFlag, Double newNum, String newText,String by) {
+    public Validation updateBasics(String newDescription, String by) {
         return new Validation(validationId, code, newDescription, dataType,
-                newFlag, newNum, newText, status, validFrom, validTo, createdAt,
-                OffsetDateTime.now(),by);
+                status, validFrom, validTo, createdAt, OffsetDateTime.now(), by);
     }
 
     private static void require(String v, String f) {

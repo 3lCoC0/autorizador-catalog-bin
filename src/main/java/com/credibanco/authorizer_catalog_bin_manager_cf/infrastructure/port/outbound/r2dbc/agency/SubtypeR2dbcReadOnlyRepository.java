@@ -31,12 +31,12 @@ public class SubtypeR2dbcReadOnlyRepository implements
         """).bind("code", subtypeCode).fetch().first().map(m->true).defaultIfEmpty(false);
     }
 
-    // ← nuevo para el caso de uso de rules
+
     @Override
     public Mono<Boolean> existsByCodeAndBinEfectivo(String code, String eff) {
         return db.sql("""
             SELECT 1 FROM SUBTYPE
-             WHERE SUBTYPE_CODE=:code AND BIN_EFECTIVO=:eff
+             WHERE SUBTYPE_CODE=:code AND BIN=:eff
              FETCH FIRST 1 ROWS ONLY
         """).bind("code", code).bind("eff", eff).fetch().first().map(m->true).defaultIfEmpty(false);
     }

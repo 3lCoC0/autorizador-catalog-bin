@@ -2,7 +2,8 @@ package com.credibanco.authorizer_catalog_bin_manager_cf.application.rule.port.i
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule.ValidationMap;
 import reactor.core.publisher.Mono;
 
+
 public interface MapRuleUseCase {
-    Mono<ValidationMap> attach(String subtypeCode, String binEfectivo, String validationCode, int priority, String by);
-    Mono<ValidationMap> changeStatus(String subtypeCode, String binEfectivo, String validationCode, String newStatus, String by);
+    Mono<ValidationMap> attach(String subtypeCode, String bin, String validationCode, Object value, String by);
+    Mono<ValidationMap> changeStatus(String subtypeCode, String bin, String validationCode, String newStatus, String by);
 }

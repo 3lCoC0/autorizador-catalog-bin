@@ -8,10 +8,10 @@ import reactor.core.publisher.Mono;
 import java.time.OffsetDateTime;
 
 public interface ValidationMapRepository {
-    Mono<Boolean> existsActive(String subtypeCode, String binEfectivo, Long validationId);
+    Mono<Boolean> existsActive(String subtypeCode, String bin, Long validationId);
     Mono<ValidationMap> save(ValidationMap map);
-    Mono<ValidationMap> findByNaturalKey(String subtypeCode, String binEfectivo, Long validationId);
-    Flux<ValidationMap> findAll(String subtypeCode, String binEfectivo, String status, int page, int size);
-    Flux<Validation> findResolved(String subtypeCode, String binEfectivo, String status, int page, int size);
+    Mono<ValidationMap> findByNaturalKey(String subtypeCode, String bin, Long validationId);
+    Flux<ValidationMap> findAll(String subtypeCode, String bin, String status, int page, int size);
+    Flux<ValidationMap> findResolved(String subtypeCode, String bin, String status, int page, int size);
 
 }
