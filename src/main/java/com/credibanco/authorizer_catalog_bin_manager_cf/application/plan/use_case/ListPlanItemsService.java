@@ -3,22 +3,20 @@ package com.credibanco.authorizer_catalog_bin_manager_cf.application.plan.use_ca
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.plan.port.inbound.ListPlanItemsUseCase;
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.plan.port.outbound.CommercePlanItemRepository;
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.plan.port.outbound.CommercePlanRepository;
-import com.credibanco.authorizer_catalog_bin_manager_cf.domain.plan.CommercePlanItem;
+import com.credibanco.authorizer_catalog_bin_manager_cf.domain.plan.PlanItem;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-public class ListPlanItemsService implements ListPlanItemsUseCase {
-    private final CommercePlanRepository planRepo;
-    private final CommercePlanItemRepository itemRepo;
+import java.util.NoSuchElementException;
 
-    public ListPlanItemsService(CommercePlanRepository planRepo, CommercePlanItemRepository itemRepo) {
-        this.planRepo = planRepo;
-        this.itemRepo = itemRepo;
-    }
+public record ListPlanItemsService(CommercePlanRepository planRepo,
+                                   CommercePlanItemRepository itemRepo)
+        implements ListPlanItemsUseCase {
 
     @Override
-    public Flux<CommercePlanItem> execute(String planCode, String q, int page, int size) {
+    public Flux<PlanItem> list(String planCode, int page, int size) {
         return planRepo.findByCode(planCode)
-                .switchIfEmpty(Flux.<CommercePlanItem>error(new java.util.NoSuchElementException("Plan no encontrado")))
-                .flatMapMany(p -> itemRepo.findByPlan(p.planId(), q, page, size));
+                .switchIfEmpty(Mono.error(new NoSuchElementException("Plan no encontrado")))
+                .flatMapMany(p -> itemRepo.listItems(p.planId(), page, size));
     }
 }

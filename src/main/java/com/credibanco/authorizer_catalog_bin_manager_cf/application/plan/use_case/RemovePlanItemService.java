@@ -5,20 +5,15 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.application.plan.port.ou
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.plan.port.outbound.CommercePlanRepository;
 import reactor.core.publisher.Mono;
 
-public class RemovePlanItemService implements RemovePlanItemUseCase {
-    private final CommercePlanRepository planRepo;
-    private final CommercePlanItemRepository itemRepo;
 
-    public RemovePlanItemService(CommercePlanRepository planRepo, CommercePlanItemRepository itemRepo) {
-        this.planRepo = planRepo;
-        this.itemRepo = itemRepo;
-    }
-
+public record RemovePlanItemService(CommercePlanRepository planRepo,
+                                    CommercePlanItemRepository itemRepo)
+        implements RemovePlanItemUseCase {
     @Override
-    public Mono<Void> execute(String planCode, String value, String updatedBy) {
+    public Mono<Void> removeValue(String planCode, String value) {
         return planRepo.findByCode(planCode)
                 .switchIfEmpty(Mono.error(new java.util.NoSuchElementException("Plan no encontrado")))
-                .flatMap(p -> itemRepo.deleteByPlanAndValue(p.planId(), value, updatedBy))
+                .flatMap(p -> itemRepo.deleteByValue(p.planId(), value))
                 .then();
     }
 }

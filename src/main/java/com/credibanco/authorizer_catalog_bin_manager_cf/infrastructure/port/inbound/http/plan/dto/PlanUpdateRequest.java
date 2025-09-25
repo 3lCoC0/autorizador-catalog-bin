@@ -5,5 +5,6 @@ import jakarta.validation.constraints.NotBlank;
 public record PlanUpdateRequest(
         @NotBlank String name,
         String description,
+        String validationMode, // null = no cambiar
         @NotBlank String updatedBy
 ) {}
