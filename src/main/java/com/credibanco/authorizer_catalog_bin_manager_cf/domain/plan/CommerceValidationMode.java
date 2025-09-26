@@ -3,9 +3,9 @@ package com.credibanco.authorizer_catalog_bin_manager_cf.domain.plan;
 import com.fasterxml.jackson.annotation.JsonCreator;
 
 public enum CommerceValidationMode {
-    UNIQUE, MCC;
+    MERCHANT_ID, MCC;
 
-    public static final String ALLOWED = "UNIQUE | MCC";
+    public static final String ALLOWED = "MERCHANT_ID | MCC";
 
     @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
     public static CommerceValidationMode fromJson(Object raw) {
@@ -14,7 +14,7 @@ public enum CommerceValidationMode {
         }
         String s = String.valueOf(raw).trim().toUpperCase();
         return switch (s) {
-            case "UNIQUE" -> UNIQUE;
+            case "MERCHANT_ID" -> MERCHANT_ID;
             case "MCC"    -> MCC;
             default -> throw new IllegalArgumentException(
                     "validationMode inválido: '" + s + "'. Valores permitidos: " + ALLOWED

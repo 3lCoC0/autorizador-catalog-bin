@@ -32,6 +32,14 @@ public class PlanUseCaseConfig {
     @Bean ListPlansUseCase listPlansUseCase(CommercePlanRepository r) { return new ListPlansService(r); }
     @Bean UpdatePlanUseCase updatePlanUseCase(CommercePlanRepository r) { return new UpdatePlanService(r); }
     @Bean ChangePlanStatusUseCase changePlanStatusUseCase(CommercePlanRepository r) { return new ChangePlanStatusService(r); }
-    @Bean RemovePlanItemUseCase removePlanItemUseCase(CommercePlanRepository pr, CommercePlanItemRepository ir) { return new RemovePlanItemService(pr, ir); }
     @Bean ListPlanItemsUseCase listPlanItemsUseCase(CommercePlanRepository pr, CommercePlanItemRepository ir) { return new ListPlanItemsService(pr, ir); }
+
+    @Bean
+    public ChangePlanItemStatusUseCase changePlanItemStatusUseCase(
+            CommercePlanRepository pr,
+            CommercePlanItemRepository ir,
+            TransactionalOperator tx
+    ) {
+        return new ChangePlanItemStatusService(pr, ir, tx);
+    }
 }

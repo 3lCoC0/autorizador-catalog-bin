@@ -14,9 +14,9 @@ public record ListPlanItemsService(CommercePlanRepository planRepo,
         implements ListPlanItemsUseCase {
 
     @Override
-    public Flux<PlanItem> list(String planCode, int page, int size) {
+    public Flux<PlanItem> list(String planCode, int page, int size, String status) {
         return planRepo.findByCode(planCode)
-                .switchIfEmpty(Mono.error(new NoSuchElementException("Plan no encontrado")))
-                .flatMapMany(p -> itemRepo.listItems(p.planId(), page, size));
+                .switchIfEmpty(Mono.error(new java.util.NoSuchElementException("Plan no encontrado")))
+                .flatMapMany(p -> itemRepo.listItems(p.planId(), status, page, size));
     }
 }

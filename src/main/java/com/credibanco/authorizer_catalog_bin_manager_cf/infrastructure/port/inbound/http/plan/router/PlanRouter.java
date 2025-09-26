@@ -24,19 +24,18 @@ public class PlanRouter {
                 .POST("/v1/plans", accept(MediaType.APPLICATION_JSON), handler::create)
                 .GET ("/v1/plans",  accept(MediaType.APPLICATION_JSON), handler::list)
                 .GET ("/v1/plans/{code}", accept(MediaType.APPLICATION_JSON), handler::get)
+                .PUT ("/v1/plans/status", accept(MediaType.APPLICATION_JSON), handler::changeStatus)
                 .PUT ("/v1/plans/{code}", accept(MediaType.APPLICATION_JSON), handler::update)
-                .PUT ("/v1/plans/{code}/status", accept(MediaType.APPLICATION_JSON), handler::changeStatus)
 
-                // Ítems del plan (MCC/Merchant) — ahora devuelven PlanItemResponse
-                // create via body (PlanItemRequest: planCode, value, updatedBy)
+
+
                 .POST("/v1/plans/items", accept(MediaType.APPLICATION_JSON), handler::addItem)
-                // list por plan (path var code)
-                .GET ("/v1/plans/{code}/items", accept(MediaType.APPLICATION_JSON), handler::listItems)
-                // delete por plan y value
-                .DELETE("/v1/plans/{code}/items/{value}", accept(MediaType.APPLICATION_JSON), handler::removeItem)
 
-                // Asignación Plan → Subtype — devuelve SubtypePlanLinkResponse
-                // via body (AssignPlanRequest: subtypeCode, planCode, updatedBy)
+                .GET ("/v1/plans/{code}/items", accept(MediaType.APPLICATION_JSON), handler::listItems)
+
+                .PUT ("/v1/plans/items/status", accept(MediaType.APPLICATION_JSON), handler::changeItemStatus)
+
+
                 .POST("/v1/plans/assign", accept(MediaType.APPLICATION_JSON), handler::assignToSubtype)
 
                 .build();

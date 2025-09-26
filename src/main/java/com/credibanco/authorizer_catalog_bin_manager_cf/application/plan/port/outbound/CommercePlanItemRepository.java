@@ -6,6 +6,8 @@ import reactor.core.publisher.Mono;
 
 public interface CommercePlanItemRepository {
     Mono<PlanItem> insertMcc(Long planId, String mcc, String by);    // ← devuelve PlanItem
-    Mono<Boolean> deleteByValue(Long planId, String value);          // ← opcional: true si borró
-    Flux<PlanItem> listItems(Long planId, int page, int size);       // ← devuelve PlanItem, no String
+    Mono<PlanItem> changeStatus(Long planId, String value, String newStatus, String updatedBy);
+    Flux<PlanItem> listItems(Long planId, String status, int page, int size);
+    Mono<PlanItem> insertMerchant(Long planId, String merchantId, String updatedBy);
+    Mono<PlanItem> findByValue(Long planId, String value);
 }

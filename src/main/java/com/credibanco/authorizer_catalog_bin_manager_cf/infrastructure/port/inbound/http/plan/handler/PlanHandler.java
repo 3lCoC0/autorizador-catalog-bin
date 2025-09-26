@@ -23,10 +23,10 @@ public class PlanHandler {
     private final UpdatePlanUseCase updateUC;
     private final ChangePlanStatusUseCase changeStatusUC;
     private final AddPlanItemUseCase addItemUC;
-    private final RemovePlanItemUseCase removeItemUC;
     private final ListPlanItemsUseCase listItemsUC;
     private final AssignPlanToSubtypeUseCase assignUC;
     private final ValidationUtil validation;
+    private final ChangePlanItemStatusUseCase changeItemStatusUC;
 
     // === CRUD Plan ===
 
@@ -73,10 +73,9 @@ public class PlanHandler {
     }
 
     public Mono<ServerResponse> changeStatus(ServerRequest req) {
-        var code = req.pathVariable("code");
         return req.bodyToMono(PlanStatusRequest.class)
                 .flatMap(validation::validate)
-                .flatMap(r -> changeStatusUC.execute(code, r.status(), r.updatedBy()))
+                .flatMap(r -> changeStatusUC.execute(r.planCode(), r.status(), r.updatedBy()))
                 .map(this::toResp)
                 .flatMap(resp -> ServerResponse.ok()
                         .contentType(MediaType.APPLICATION_JSON)
@@ -100,22 +99,28 @@ public class PlanHandler {
                         .bodyValue(resp));
     }
 
-    public Mono<ServerResponse> removeItem(ServerRequest req) {
-        var code  = req.pathVariable("code");
-        var value = req.pathVariable("value");
-        return removeItemUC.removeValue(code, value)
-                .then(ServerResponse.noContent().build()); // 204
+    public Mono<ServerResponse> changeItemStatus(ServerRequest req) {
+        return req.bodyToMono(PlanItemStatus.class)
+                .flatMap(validation::validate)
+                .flatMap(r -> changeItemStatusUC.execute(
+                        r.planCode(), r.value(), r.status(), r.updatedBy()))
+                .map(this::toItemResp)
+                .flatMap(resp -> ServerResponse.ok()
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(resp));
     }
 
     public Mono<ServerResponse> listItems(ServerRequest req) {
         var code = req.pathVariable("code");
         int page = req.queryParam("page").map(Integer::parseInt).orElse(0);
         int size = req.queryParam("size").map(Integer::parseInt).orElse(100);
-        var body = listItemsUC.list(code, page, size).map(this::toItemResp);
-        return ServerResponse.ok()
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(body, PlanItemResponse.class);
+        String status = req.queryParam("status")
+                .map(String::trim).map(String::toUpperCase)
+                .filter(s -> !"ALL".equals(s)).orElse("A"); // default: activos
+        var body = listItemsUC.list(code, page, size, status).map(this::toItemResp);
+        return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).body(body, PlanItemResponse.class);
     }
+
 
     // === Subtype ← Plan (devuelve link de dominio como DTO) ===
 
