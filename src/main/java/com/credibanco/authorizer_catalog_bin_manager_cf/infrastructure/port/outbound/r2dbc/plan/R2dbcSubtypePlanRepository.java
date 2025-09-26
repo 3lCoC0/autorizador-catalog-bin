@@ -51,11 +51,11 @@ public class R2dbcSubtypePlanRepository implements SubtypePlanRepository {
     }
 
     @Override
-    public Mono<SubtypePlanLink> findBySubtype(String subtypeCode) {
+    public Mono<SubtypePlanLink> findBySubtypeCode(String subtypeCode) {
         return db.sql("""
-            SELECT SUBTYPE_CODE, PLAN_ID, CREATED_AT, UPDATED_AT, UPDATED_BY
-              FROM SUBTYPE_COMMERCE_PLAN
-             WHERE SUBTYPE_CODE=:sc
-        """).bind("sc", subtypeCode).map(MAPPER).one();
+        SELECT SUBTYPE_CODE, PLAN_ID, CREATED_AT, UPDATED_AT, UPDATED_BY
+          FROM SUBTYPE_COMMERCE_PLAN
+         WHERE SUBTYPE_CODE=:sc
+    """).bind("sc", subtypeCode).map(MAPPER).one();
     }
 }

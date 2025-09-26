@@ -8,7 +8,8 @@ import reactor.core.publisher.Mono;
 @Repository
 public class SubtypeR2dbcReadOnlyRepository implements
         com.credibanco.authorizer_catalog_bin_manager_cf.application.agency.port.outbound.SubtypeReadOnlyRepository,
-        com.credibanco.authorizer_catalog_bin_manager_cf.application.rule.port.outbound.SubtypeReadOnlyRepository {
+        com.credibanco.authorizer_catalog_bin_manager_cf.application.rule.port.outbound.SubtypeReadOnlyRepository,
+        com.credibanco.authorizer_catalog_bin_manager_cf.application.plan.port.outbound.SubtypeReadOnlyRepository {
 
     private final DatabaseClient db;
     public SubtypeR2dbcReadOnlyRepository(DatabaseClient db) { this.db = db; }
