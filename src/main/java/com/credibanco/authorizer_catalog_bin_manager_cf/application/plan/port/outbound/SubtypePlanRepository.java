@@ -4,6 +4,13 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.domain.plan.SubtypePlanL
 import reactor.core.publisher.Mono;
 
 public interface SubtypePlanRepository {
-    Mono<SubtypePlanLink> upsert(String subtypeCode, Long planId, String updatedBy);
+    Mono<Integer> upsert(String subtypeCode, Long planId, String updatedBy);
+
+
     Mono<SubtypePlanLink> findBySubtype(String subtypeCode);
+
+
+    default Mono<SubtypePlanLink> findBySubtypeCode(String subtypeCode) {
+        return findBySubtype(subtypeCode);
+    }
 }

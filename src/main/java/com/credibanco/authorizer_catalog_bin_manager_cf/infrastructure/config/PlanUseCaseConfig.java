@@ -22,12 +22,10 @@ public class PlanUseCaseConfig {
         return new AddPlanItemService(pr, ir, tx);
     }
     @Bean
-    AssignPlanToSubtypeUseCase assignPlanToSubtypeUseCase(
-            CommercePlanRepository pr,
-            SubtypePlanRepository sr,
-            com.credibanco.authorizer_catalog_bin_manager_cf.application.plan.port.outbound.SubtypeReadOnlyRepository subtypeRepo,
-            TransactionalOperator tx
-    ) {
+    AssignPlanToSubtypeUseCase assignPlanToSubtypeUseCase(CommercePlanRepository pr,
+                                                          SubtypePlanRepository sr,
+                                                          com.credibanco.authorizer_catalog_bin_manager_cf.application.plan.port.outbound.SubtypeReadOnlyRepository subtypeRepo,
+                                                          TransactionalOperator tx) {
         return new AssignPlanToSubtypeService(pr, sr, subtypeRepo, tx);
     }
 

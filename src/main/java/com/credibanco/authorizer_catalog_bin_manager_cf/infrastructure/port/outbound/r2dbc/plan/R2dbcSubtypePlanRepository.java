@@ -1,4 +1,3 @@
-// src/main/java/.../infrastructure/port/outbound/r2dbc/plan/R2dbcSubtypePlanRepository.java
 package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.outbound.r2dbc.plan;
 
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.plan.port.outbound.SubtypePlanRepository;
@@ -20,7 +19,7 @@ public class R2dbcSubtypePlanRepository implements SubtypePlanRepository {
     private final DatabaseClient db;
     public R2dbcSubtypePlanRepository(DatabaseClient db) { this.db = db; }
 
-    private static OffsetDateTime toOffset(io.r2dbc.spi.Row r, String col) {
+    private static OffsetDateTime toOffset(Row r, String col) {
         LocalDateTime ldt = r.get(col, LocalDateTime.class);
         return ldt != null ? ldt.atZone(ZONE).toOffsetDateTime() : r.get(col, OffsetDateTime.class);
     }
@@ -35,27 +34,31 @@ public class R2dbcSubtypePlanRepository implements SubtypePlanRepository {
             );
 
     @Override
-    public Mono<SubtypePlanLink> upsert(String subtypeCode, Long planId, String by) {
+    public Mono<Integer> upsert(String subtypeCode, Long planId, String by) {
         return db.sql("""
-            MERGE INTO SUBTYPE_COMMERCE_PLAN t
-            USING (SELECT :sc SUBTYPE_CODE FROM DUAL) s
-               ON (t.SUBTYPE_CODE = s.SUBTYPE_CODE)
-            WHEN MATCHED THEN UPDATE SET
-                 t.PLAN_ID=:pid, t.UPDATED_AT=SYSTIMESTAMP, t.UPDATED_BY=:by
-            WHEN NOT MATCHED THEN INSERT
-                 (SUBTYPE_PLAN_ID, SUBTYPE_CODE, PLAN_ID, CREATED_AT, UPDATED_AT, UPDATED_BY)
-            VALUES (SEQ_SUBTYPE_COMMERCE_PLAN_ID.NEXTVAL, :sc, :pid, SYSTIMESTAMP, SYSTIMESTAMP, :by)
-        """).bind("sc", subtypeCode).bind("pid", planId).bind("by", by)
-                .fetch().rowsUpdated()
-                .then(findBySubtype(subtypeCode)); // ← rehidrata el link vigente
+        MERGE INTO SUBTYPE_COMMERCE_PLAN t
+        USING (SELECT :sc SUBTYPE_CODE FROM DUAL) s
+           ON (t.SUBTYPE_CODE = s.SUBTYPE_CODE)
+        WHEN MATCHED THEN UPDATE SET
+             t.PLAN_ID=:pid, t.UPDATED_AT=SYSTIMESTAMP, t.UPDATED_BY=:by
+        WHEN NOT MATCHED THEN INSERT
+             (SUBTYPE_PLAN_ID, SUBTYPE_CODE, PLAN_ID, CREATED_AT, UPDATED_AT, UPDATED_BY)
+        VALUES (SEQ_SUBTYPE_COMMERCE_PLAN_ID.NEXTVAL, :sc, :pid, SYSTIMESTAMP, SYSTIMESTAMP, :by)
+    """)
+                .bind("sc", subtypeCode)
+                .bind("pid", planId)
+                .bind("by", by)
+                .fetch()
+                .rowsUpdated()              // Mono<Long>
+                .map(Long::intValue);       // -> Mono<Integer>
     }
 
     @Override
-    public Mono<SubtypePlanLink> findBySubtypeCode(String subtypeCode) {
+    public Mono<SubtypePlanLink> findBySubtype(String subtypeCode) { // ✅ nombre unificado
         return db.sql("""
-        SELECT SUBTYPE_CODE, PLAN_ID, CREATED_AT, UPDATED_AT, UPDATED_BY
-          FROM SUBTYPE_COMMERCE_PLAN
-         WHERE SUBTYPE_CODE=:sc
-    """).bind("sc", subtypeCode).map(MAPPER).one();
+            SELECT SUBTYPE_CODE, PLAN_ID, CREATED_AT, UPDATED_AT, UPDATED_BY
+              FROM SUBTYPE_COMMERCE_PLAN
+             WHERE SUBTYPE_CODE=:sc
+        """).bind("sc", subtypeCode).map(MAPPER).one();
     }
 }
