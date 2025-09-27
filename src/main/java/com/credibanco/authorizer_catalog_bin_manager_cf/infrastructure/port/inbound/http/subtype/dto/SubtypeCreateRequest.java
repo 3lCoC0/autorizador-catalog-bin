@@ -6,11 +6,11 @@ import jakarta.validation.constraints.Size;
 
 public record SubtypeCreateRequest(
         @NotBlank @Size(min = 3, max = 3) String subtypeCode,
-        @NotBlank @Pattern(regexp="\\d{6}|\\d{8}|\\d{9}") String bin,
+        @NotBlank @Pattern(regexp="\\d{6,9}") String bin,     // ahora 6..9
         @NotBlank String name,
         String description,
         String ownerIdType,
         String ownerIdNumber,
         @Pattern(regexp="\\d*", message="binExt debe ser numérico") String binExt,
-        @NotBlank String createdBy
+        String createdBy
 ) {}

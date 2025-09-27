@@ -4,8 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 
 public record SubtypeStatusRequest(
-        @NotBlank
-        @Pattern(regexp = "A|I", message = "status debe ser 'A' o 'I'")
+        @NotBlank @Pattern(regexp = "A|I", message = "status debe ser 'A' o 'I'")
         String status,
-        @NotBlank String updatedBy
+        String updatedBy
 ) {}

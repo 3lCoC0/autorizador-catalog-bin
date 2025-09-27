@@ -12,11 +12,22 @@ public class BinR2dbcReadOnlyRepository implements BinReadOnlyRepository {
 
     @Override
     public Mono<Boolean> existsById(String bin) {
-        return db.sql("SELECT 1 FROM BIN WHERE BIN = :bin FETCH FIRST 1 ROWS ONLY")
+        return db.sql("SELECT 1 FROM BIN WHERE BIN=:bin FETCH FIRST 1 ROWS ONLY")
+                .bind("bin", bin).fetch().first().map(m -> true).defaultIfEmpty(false);
+    }
+
+    @Override
+    public Mono<BinExtConfig> getExtConfig(String bin) {
+        return db.sql("""
+                SELECT USES_BIN_EXT, BIN_EXT_DIGITS
+                  FROM BIN
+                 WHERE BIN = :bin
+                """)
                 .bind("bin", bin)
-                .fetch()
-                .first()
-                .map(m -> true)
-                .defaultIfEmpty(false);
+                .map((r, m) -> new BinExtConfig(
+                        r.get("USES_BIN_EXT", String.class),
+                        r.get("BIN_EXT_DIGITS", Integer.class)
+                ))
+                .one();
     }
 }

@@ -9,5 +9,5 @@ public record SubtypeUpdateRequest(
         String ownerIdType,
         String ownerIdNumber,
         @Pattern(regexp="\\d*", message="binExt debe ser numérico") String binExt,
-        @NotBlank String updatedBy
+        String updatedBy
 ) {}
