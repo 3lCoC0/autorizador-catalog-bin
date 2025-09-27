@@ -12,7 +12,7 @@ import java.util.NoSuchElementException;
 
 public record AssignPlanToSubtypeService(CommercePlanRepository planRepo,
                                          SubtypePlanRepository subRepo,
-                                         SubtypeReadOnlyRepository subtypeRepo,  // ⬅️ nuevo
+                                         SubtypeReadOnlyRepository subtypeRepo,
                                          TransactionalOperator tx)
         implements AssignPlanToSubtypeUseCase {
 
@@ -26,7 +26,7 @@ public record AssignPlanToSubtypeService(CommercePlanRepository planRepo,
                 .then(planRepo.findByCode(planCode)
                         .switchIfEmpty(Mono.error(new NoSuchElementException("Plan no encontrado"))))
                 .flatMap(p -> subRepo.upsert(subtypeCode, p.planId(), by)
-                        .then(subRepo.findBySubtype(subtypeCode))) // ← aquí el nombre unificado
+                        .then(subRepo.findBySubtype(subtypeCode)))
                 .as(tx::transactional);
     }
 }
