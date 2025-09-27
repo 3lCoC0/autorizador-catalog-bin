@@ -5,13 +5,14 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public record BinUpdateRequest(
-        @NotBlank
-        @Pattern(regexp = "\\d{6}|\\d{8}|\\d{9}", message = "bin debe tener 6, 8 o 9 dígitos")
+        @NotBlank @Pattern(regexp="\\d{6,9}", message="bin debe tener entre 6 y 9 dígitos")
         String bin,
-        @NotBlank @Size(min = 3, max = 80) String name,
-        @NotBlank String typeBin,
-        @NotBlank String typeAccount,
-        String compensationCod, // opcional
-        String description,     // opcional
-        @NotBlank String updatedBy
+        @NotBlank @Size(min=3, max=120) String name,
+        @NotBlank @Pattern(regexp="DEBITO|CREDITO|PREPAGO") String typeBin,
+        @NotBlank @Pattern(regexp="\\d{2}") String typeAccount,
+        String compensationCod,
+        String description,
+        @NotBlank @Pattern(regexp="Y|N", message="usesBinExt debe ser 'Y' o 'N'") String usesBinExt,
+        Integer binExtDigits,
+        String updatedBy
 ) {}

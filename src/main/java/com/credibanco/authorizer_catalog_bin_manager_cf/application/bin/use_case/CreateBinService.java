@@ -9,26 +9,23 @@ import reactor.core.publisher.Mono;
 
 public record CreateBinService(BinRepository repo, TransactionalOperator tx)
         implements CreateBinUseCase {
-
     @Override
     public Mono<Bin> execute(String bin, String name, String typeBin, String typeAccount,
-                             String compensationCod, String description, String createdBy) {
-
+                             String compensationCod, String description,
+                             String usesBinExt, Integer binExtDigits,
+                             String createdByNullable) {
         return Mono.defer(() -> {
-            // Validación rápida aquí; el resto déjalo a la fábrica de dominio
-            if (bin == null || bin.length() < 6) {
-                return Mono.error(new IllegalArgumentException("BIN inválido"));
+            if (bin == null || bin.length() < 6 || bin.length() > 9) {
+                return Mono.error(new IllegalArgumentException("BIN inválido (debe tener 6 a 9 dígitos)"));
             }
-
-            // Fábrica de dominio (aplica invariantes del agregado)
-            Bin aggregate = Bin.createNew(bin, name, typeBin, typeAccount, compensationCod, description, createdBy);
-
-            // Idempotencia básica por clave natural (BIN)
+            Bin aggregate = Bin.createNew(
+                    bin, name, typeBin, typeAccount, compensationCod, description,
+                    usesBinExt, binExtDigits, createdByNullable
+            );
             return repo.existsById(bin)
                     .flatMap(exists -> exists
                             ? Mono.error(new IllegalStateException("El BIN ya existe"))
                             : repo.save(aggregate))
-                    // MERGE + SELECT quedan en UNA transacción
                     .as(tx::transactional);
         });
     }

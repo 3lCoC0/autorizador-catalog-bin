@@ -11,6 +11,8 @@ public record BinResponse(
         String description,
         String status,
         OffsetDateTime createdAt,
-        OffsetDateTime  updatedAt,
-        String updatedBy
+        OffsetDateTime updatedAt,
+        String updatedBy,
+        String usesBinExt,
+        Integer binExtDigits
 ) {}

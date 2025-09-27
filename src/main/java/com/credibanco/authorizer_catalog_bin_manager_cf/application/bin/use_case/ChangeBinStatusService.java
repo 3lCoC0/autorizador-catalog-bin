@@ -10,12 +10,11 @@ import java.util.NoSuchElementException;
 
 public record ChangeBinStatusService(BinRepository repo, TransactionalOperator tx)
         implements ChangeBinStatusUseCase {
-
     @Override
-    public Mono<Bin> execute(String bin, String newStatus, String by) {
+    public Mono<Bin> execute(String bin, String newStatus, String byNullable) {
         return repo.findById(bin)
                 .switchIfEmpty(Mono.error(new NoSuchElementException("BIN no existe")))
-                .flatMap(current -> repo.save(current.changeStatus(newStatus, by)))
+                .flatMap(current -> repo.save(current.changeStatus(newStatus, byNullable)))
                 .as(tx::transactional);
     }
 }

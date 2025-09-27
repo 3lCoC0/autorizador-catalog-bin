@@ -9,21 +9,13 @@ import org.springframework.transaction.reactive.TransactionalOperator;
 
 @Configuration
 public class BinUseCaseConfig {
-    @Bean
-    public CreateBinUseCase createBinUseCase(BinRepository repo, TransactionalOperator tx) {return new CreateBinService(repo, tx);}
-    @Bean
-    public ChangeBinStatusUseCase changeBinStatusUseCase(
-            BinRepository repo, TransactionalOperator tx) {
-        return new ChangeBinStatusService(repo, tx);
-    }
+
     @Bean
     GetBinUseCase getBinUseCase(BinRepository repo) { return new GetBinService(repo); }
     @Bean
     ListBinsUseCase listBinsUseCase(BinRepository repo) { return new ListBinsService(repo); }
-    @Bean
-    public UpdateBinUseCase updateBinUseCase(BinRepository repo, TransactionalOperator tx) {
-        return new UpdateBinService(repo, tx);
-    }
-
+    @Bean public CreateBinUseCase createBinUseCase(BinRepository repo, TransactionalOperator tx) { return new CreateBinService(repo, tx); }
+    @Bean public ChangeBinStatusUseCase changeBinStatusUseCase(BinRepository repo, TransactionalOperator tx) { return new ChangeBinStatusService(repo, tx); }
+    @Bean public UpdateBinUseCase updateBinUseCase(BinRepository repo, TransactionalOperator tx) { return new UpdateBinService(repo, tx); }
 
 }

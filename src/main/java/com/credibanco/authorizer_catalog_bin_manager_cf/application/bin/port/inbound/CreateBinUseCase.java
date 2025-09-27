@@ -5,5 +5,7 @@ import reactor.core.publisher.Mono;
 
 public interface CreateBinUseCase {
     Mono<Bin> execute(String bin, String name, String typeBin, String typeAccount,
-                      String compensationCod, String description, String createdBy);
+                      String compensationCod, String description,
+                      String usesBinExt, Integer binExtDigits,
+                      String createdByNullable);
 }

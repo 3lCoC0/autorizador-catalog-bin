@@ -1,7 +1,6 @@
 package com.credibanco.authorizer_catalog_bin_manager_cf.domain.bin;
 
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.Objects;
 
 public record Bin(
@@ -14,13 +13,15 @@ public record Bin(
         String status,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt,
-        String updatedBy
+        String updatedBy,          // <-- puede ser null
+        String usesBinExt,         // <-- 'Y'|'N'
+        Integer binExtDigits       // <-- 1|2|3 si usesBinExt='Y', si 'N' => null
 ) {
     public Bin {
         require(bin, "bin");
         if (!bin.chars().allMatch(Character::isDigit)) throw new IllegalArgumentException("BIN debe ser numérico");
         int len = bin.length();
-        if (len != 6 && len != 8 && len != 9) throw new IllegalArgumentException("BIN debe ser de 6, 8 o 9 dígitos");
+        if (len < 6 || len > 9) throw new IllegalArgumentException("BIN debe tener entre 6 y 9 dígitos");
 
         require(name, "name");
         require(typeBin, "typeBin");
@@ -34,34 +35,49 @@ public record Bin(
         require(status, "status");
         if (!Objects.equals(status, "A") && !Objects.equals(status, "I"))
             throw new IllegalArgumentException("status debe ser 'A' o 'I'");
+
+
+        require(usesBinExt, "usesBinExt");
+        if (!("Y".equals(usesBinExt) || "N".equals(usesBinExt)))
+            throw new IllegalArgumentException("usesBinExt debe ser 'Y' o 'N'");
+
+        if ("Y".equals(usesBinExt)) {
+            if (binExtDigits == null || !(binExtDigits == 1 || binExtDigits == 2 || binExtDigits == 3))
+                throw new IllegalArgumentException("binExtDigits debe ser 1, 2 o 3 cuando usesBinExt='Y'");
+        } else { // 'N'
+            if (binExtDigits != null)
+                throw new IllegalArgumentException("binExtDigits debe ser null cuando usesBinExt='N'");
+        }
     }
 
-    /** Creación (DDD): estado A y timestamps. */
     public static Bin createNew(String bin, String name, String typeBin, String typeAccount,
-                                String compensationCod, String description, String createdBy) {
+                                String compensationCod, String description,
+                                String usesBinExt, Integer binExtDigits,
+                                String createdByNullable) {
         var now = OffsetDateTime.now();
-        return new Bin(bin, name, typeBin, typeAccount, compensationCod, description, "A", now, now, createdBy);
+        return new Bin(bin, name, typeBin, typeAccount, compensationCod, description,
+                "A", now, now, createdByNullable, usesBinExt, binExtDigits);
     }
 
-    /** Rehidratación desde DB. */
     public static Bin rehydrate(String bin, String name, String typeBin, String typeAccount,
                                 String compensationCod, String description, String status,
-                                OffsetDateTime  createdAt, OffsetDateTime  updatedAt, String updatedBy) {
-        return new Bin(bin, name, typeBin, typeAccount, compensationCod, description, status,
-                createdAt, updatedAt, updatedBy);
+                                OffsetDateTime createdAt, OffsetDateTime updatedAt, String updatedBy,
+                                String usesBinExt, Integer binExtDigits) {
+        return new Bin(bin, name, typeBin, typeAccount, compensationCod, description,
+                status, createdAt, updatedAt, updatedBy, usesBinExt, binExtDigits);
     }
 
-    /** Cambiar estado (inmutable). */
-    public Bin changeStatus(String newStatus, String by) {
+    public Bin changeStatus(String newStatus, String byNullable) {
         if (!Objects.equals(newStatus, "A") && !Objects.equals(newStatus, "I"))
             throw new IllegalArgumentException("status debe ser 'A' o 'I'");
         return new Bin(bin, name, typeBin, typeAccount, compensationCod, description,
-                newStatus, createdAt, OffsetDateTime.now(), by);
+                newStatus, createdAt, OffsetDateTime.now(), byNullable, usesBinExt, binExtDigits);
     }
 
-    /** Actualizar datos básicos (inmutable). */
     public Bin updateBasics(String newName, String newTypeBin, String newTypeAccount,
-                            String newCompCod, String newDescription, String by) {
+                            String newCompCod, String newDescription,
+                            String newUsesBinExt, Integer newBinExtDigits,
+                            String byNullable) {
         require(newName, "name");
         require(newTypeBin, "typeBin");
         if (!("DEBITO".equals(newTypeBin) || "CREDITO".equals(newTypeBin) || "PREPAGO".equals(newTypeBin)))
@@ -70,8 +86,19 @@ public record Bin(
         if (!(newTypeAccount.length() == 2 && newTypeAccount.chars().allMatch(Character::isDigit)))
             throw new IllegalArgumentException("typeAccount debe ser de 2 dígitos");
 
+
+        if (!("Y".equals(newUsesBinExt) || "N".equals(newUsesBinExt)))
+            throw new IllegalArgumentException("usesBinExt debe ser 'Y' o 'N'");
+        if ("Y".equals(newUsesBinExt)) {
+            if (newBinExtDigits == null || !(newBinExtDigits == 1 || newBinExtDigits == 2 || newBinExtDigits == 3))
+                throw new IllegalArgumentException("binExtDigits debe ser 1, 2 o 3 cuando usesBinExt='Y'");
+        } else {
+            if (newBinExtDigits != null)
+                throw new IllegalArgumentException("binExtDigits debe ser null cuando usesBinExt='N'");
+        }
+
         return new Bin(bin, newName, newTypeBin, newTypeAccount, newCompCod, newDescription,
-                status, createdAt, OffsetDateTime.now(), by);
+                status, createdAt, OffsetDateTime.now(), byNullable, newUsesBinExt, newBinExtDigits);
     }
 
     private static void require(String v, String f) {

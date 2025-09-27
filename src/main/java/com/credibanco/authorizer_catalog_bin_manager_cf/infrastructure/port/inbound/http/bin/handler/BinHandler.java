@@ -28,21 +28,33 @@ public class BinHandler {
     public Mono<ServerResponse> create(ServerRequest req) {
         return req.bodyToMono(BinCreateRequest.class)
                 .flatMap(validation::validate)
-                .flatMap(r -> createUC.execute(
-                        r.bin(), r.name(), r.typeBin(), r.typeAccount(),
-                        r.compensationCod(), r.description(), r.createdBy()
-                ))
+                .flatMap(r -> {
+
+                    if ("Y".equals(r.usesBinExt())) {
+                        if (r.binExtDigits() == null || !(r.binExtDigits() == 1 || r.binExtDigits() == 2 || r.binExtDigits() == 3))
+                            return Mono.error(new IllegalArgumentException("binExtDigits debe ser 1, 2 o 3 cuando usesBinExt='Y'"));
+                    } else {
+                        if (r.binExtDigits() != null)
+                            return Mono.error(new IllegalArgumentException("binExtDigits debe ser null cuando usesBinExt='N'"));
+                    }
+
+                    return createUC.execute(
+                            r.bin(), r.name(), r.typeBin(), r.typeAccount(),
+                            r.compensationCod(), r.description(),
+                            r.usesBinExt(), r.binExtDigits(),
+                            r.createdBy() // puede ser null
+                    );
+                })
                 .map(b -> new BinResponse(
                         b.bin(), b.name(), b.typeBin(), b.typeAccount(),
                         b.compensationCod(), b.description(), b.status(),
-                        b.createdAt(), b.updatedAt(), b.updatedBy()
+                        b.createdAt(), b.updatedAt(), b.updatedBy(),
+                        b.usesBinExt(), b.binExtDigits()
                 ))
-                .flatMap(resp -> ServerResponse.created(req.uriBuilder().path("/{bin}")
-                                .build(resp.bin()))
+                .flatMap(resp -> ServerResponse.created(req.uriBuilder().path("/{bin}").build(resp.bin()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .bodyValue(resp));
     }
-
     public Mono<ServerResponse> list(ServerRequest req) {
         int page = req.queryParam("page").map(Integer::parseInt).orElse(0);
         int size = req.queryParam("size").map(Integer::parseInt).orElse(20);
@@ -51,7 +63,8 @@ public class BinHandler {
                 .map(b -> new BinResponse(
                         b.bin(), b.name(), b.typeBin(), b.typeAccount(),
                         b.compensationCod(), b.description(), b.status(),
-                        b.createdAt(), b.updatedAt(), b.updatedBy()
+                        b.createdAt(), b.updatedAt(), b.updatedBy(),
+                        b.usesBinExt(), b.binExtDigits()
                 ));
 
         return ServerResponse.ok()
@@ -63,14 +76,27 @@ public class BinHandler {
     public Mono<ServerResponse> update(ServerRequest req) {
         return req.bodyToMono(BinUpdateRequest.class)
                 .flatMap(validation::validate)
-                .flatMap(r -> updateUC.execute(
-                        r.bin(), r.name(), r.typeBin(), r.typeAccount(),
-                        r.compensationCod(), r.description(), r.updatedBy()
-                ))
+                .flatMap(r -> {
+                    if ("Y".equals(r.usesBinExt())) {
+                        if (r.binExtDigits() == null || !(r.binExtDigits() == 1 || r.binExtDigits() == 2 || r.binExtDigits() == 3))
+                            return Mono.error(new IllegalArgumentException("binExtDigits debe ser 1, 2 o 3 cuando usesBinExt='Y'"));
+                    } else {
+                        if (r.binExtDigits() != null)
+                            return Mono.error(new IllegalArgumentException("binExtDigits debe ser null cuando usesBinExt='N'"));
+                    }
+
+                    return updateUC.execute(
+                            r.bin(), r.name(), r.typeBin(), r.typeAccount(),
+                            r.compensationCod(), r.description(),
+                            r.usesBinExt(), r.binExtDigits(),
+                            r.updatedBy() // puede ser null
+                    );
+                })
                 .map(b -> new BinResponse(
                         b.bin(), b.name(), b.typeBin(), b.typeAccount(),
                         b.compensationCod(), b.description(), b.status(),
-                        b.createdAt(), b.updatedAt(), b.updatedBy()
+                        b.createdAt(), b.updatedAt(), b.updatedBy(),
+                        b.usesBinExt(), b.binExtDigits()
                 ))
                 .flatMap(resp -> ServerResponse.ok()
                         .contentType(MediaType.APPLICATION_JSON)
@@ -83,12 +109,14 @@ public class BinHandler {
                 .map(b -> new BinResponse(
                         b.bin(), b.name(), b.typeBin(), b.typeAccount(),
                         b.compensationCod(), b.description(), b.status(),
-                        b.createdAt(), b.updatedAt(), b.updatedBy()
+                        b.createdAt(), b.updatedAt(), b.updatedBy(),
+                        b.usesBinExt(), b.binExtDigits()
                 ))
                 .flatMap(resp -> ServerResponse.ok()
                         .contentType(MediaType.APPLICATION_JSON)
                         .bodyValue(resp));
     }
+
 
     public Mono<ServerResponse> changeStatus(ServerRequest req) {
         String bin = req.pathVariable("bin");
@@ -98,7 +126,8 @@ public class BinHandler {
                 .map(b -> new BinResponse(
                         b.bin(), b.name(), b.typeBin(), b.typeAccount(),
                         b.compensationCod(), b.description(), b.status(),
-                        b.createdAt(), b.updatedAt(), b.updatedBy()
+                        b.createdAt(), b.updatedAt(), b.updatedBy(),
+                        b.usesBinExt(), b.binExtDigits()
                 ))
                 .flatMap(resp -> ServerResponse.ok()
                         .contentType(MediaType.APPLICATION_JSON)

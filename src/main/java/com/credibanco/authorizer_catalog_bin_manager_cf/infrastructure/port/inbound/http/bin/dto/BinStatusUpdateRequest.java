@@ -9,5 +9,5 @@ public record BinStatusUpdateRequest(
         @NotBlank
         @Pattern(regexp = "A|I", message = "status debe ser 'A' o 'I'")
         String status,
-        @NotBlank String updatedBy
+        String updatedBy
 ) {}
