@@ -8,15 +8,22 @@ import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Mono;
 
 import java.util.NoSuchElementException;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public record ChangeSubtypeStatusService(
         SubtypeRepository repo,
         AgencyReadOnlyRepository agencyRepo,
         TransactionalOperator tx
 ) implements ChangeSubtypeStatusUseCase {
 
+    private static long ms(long t0) { return (System.nanoTime() - t0) / 1_000_000; }
+
     @Override
     public Mono<Subtype> execute(String bin, String subtypeCode, String newStatus, String by) {
+        long t0 = System.nanoTime();
+        log.debug("UC:Subtype:ChangeStatus:start bin={} code={} newStatus={}", bin, subtypeCode, newStatus);
+
         if (!"A".equals(newStatus) && !"I".equals(newStatus)) {
             return Mono.error(new IllegalArgumentException("status inválido"));
         }
@@ -33,6 +40,9 @@ public record ChangeSubtypeStatusService(
                     }
                     return repo.save(s.changeStatus("I", by));
                 })
+                .doOnSuccess(s -> log.info("UC:Subtype:ChangeStatus:done bin={} code={} status={} elapsedMs={}",
+                        s.bin(), s.subtypeCode(), s.status(), ms(t0)))
                 .as(tx::transactional);
     }
 }
+

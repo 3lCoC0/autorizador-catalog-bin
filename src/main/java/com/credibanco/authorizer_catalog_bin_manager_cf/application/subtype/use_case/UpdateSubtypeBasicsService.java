@@ -5,16 +5,20 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.application.subtype.port
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.subtype.port.outbound.BinReadOnlyRepository;
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.subtype.port.outbound.SubtypeRepository;
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.subtype.Subtype;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Mono;
 
 import java.util.NoSuchElementException;
 
+@Slf4j
 public record UpdateSubtypeBasicsService(
         SubtypeRepository repo,
         BinReadOnlyRepository binRepo,
         TransactionalOperator tx
 ) implements UpdateSubtypeBasicsUseCase {
+
+    private static long ms(long t0) { return (System.nanoTime() - t0) / 1_000_000; }
 
     @Override
     public Mono<Subtype> execute(String bin, String subtypeCode,
@@ -22,35 +26,28 @@ public record UpdateSubtypeBasicsService(
                                  String ownerIdType, String ownerIdNumber,
                                  String newBinExt, String updatedByNullable) {
 
+        long t0 = System.nanoTime();
+        log.debug("UC:Subtype:Update:start bin={} code={} ownerIdType={} ext?={}",
+                bin, subtypeCode, ownerIdType, newBinExt != null);
+
         return repo.findByPk(bin, subtypeCode)
                 .switchIfEmpty(Mono.error(new NoSuchElementException("SUBTYPE no encontrado")))
-                .flatMap(current -> binRepo.getExtConfig(current.bin())
-                        .switchIfEmpty(Mono.error(new IllegalArgumentException("BIN no existe (FK)")))
-                        .flatMap(cfg -> {
-                            String normExt = normalizeExtAgainstConfig(current.bin(), newBinExt,
-                                    cfg.usesBinExt(), cfg.binExtDigits());
-                            Subtype updated = current.updateBasics(
-                                    name, description, ownerIdType, ownerIdNumber, normExt, updatedByNullable);
+                .flatMap(current -> {
+                    Subtype updated = current.updateBasics(name, description, ownerIdType, ownerIdNumber, newBinExt, updatedByNullable);
 
-                            boolean extChanged = (current.binExt() == null && updated.binExt() != null)
-                                    || (current.binExt() != null && !current.binExt().equals(updated.binExt()));
+                    boolean extChanged = (current.binExt() == null && updated.binExt() != null)
+                            || (current.binExt() != null && !current.binExt().equals(updated.binExt()));
 
-                            Mono<Boolean> extExists = extChanged && updated.binExt() != null
-                                    ? repo.existsByBinAndExt(updated.bin(), updated.binExt())
-                                    : Mono.just(false);
+                    Mono<Boolean> extExists = extChanged && updated.binExt() != null
+                            ? repo.existsByBinAndExt(updated.bin(), updated.binExt())
+                            : Mono.just(false);
 
-                            Mono<Boolean> collision = extChanged && updated.binExt() != null
-                                    ? binRepo.existsById(updated.binEfectivo())
-                                    : Mono.just(false);
-
-                            return Mono.zip(extExists, collision)
-                                    .flatMap(z -> {
-                                        if (z.getT1()) return Mono.error(new IllegalStateException("bin_ext ya usado para ese BIN"));
-                                        if (z.getT2()) return Mono.error(new IllegalStateException(
-                                                "Colisión: ya existe BIN maestro " + updated.binEfectivo()));
-                                        return repo.save(updated);
-                                    });
-                        }))
+                    return extExists.flatMap(exists -> exists
+                            ? Mono.error(new IllegalStateException("bin_ext ya usado para ese BIN"))
+                            : repo.save(updated));
+                })
+                .doOnSuccess(s -> log.info("UC:Subtype:Update:done bin={} code={} elapsedMs={}",
+                        s.bin(), s.subtypeCode(), ms(t0)))
                 .as(tx::transactional);
     }
 
