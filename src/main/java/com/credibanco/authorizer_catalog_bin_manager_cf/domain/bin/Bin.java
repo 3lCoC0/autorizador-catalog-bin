@@ -15,7 +15,7 @@ public record Bin(
         OffsetDateTime updatedAt,
         String updatedBy,          // <-- puede ser null
         String usesBinExt,         // <-- 'Y'|'N'
-        Integer binExtDigits       // <-- 1|2|3 si usesBinExt='Y', si 'N' => null
+        Integer binExtDigits    // <-- 1|2|3 si usesBinExt='Y', si 'N' => null
 ) {
     public Bin {
         require(bin, "bin");
@@ -41,16 +41,23 @@ public record Bin(
         if (!("Y".equals(usesBinExt) || "N".equals(usesBinExt)))
             throw new IllegalArgumentException("usesBinExt debe ser 'Y' o 'N'");
 
+        int baseLen = bin.length();
         if ("Y".equals(usesBinExt)) {
-            if (binExtDigits == null || !(binExtDigits == 1 || binExtDigits == 2 || binExtDigits == 3))
+            if (binExtDigits == null || !(binExtDigits == 1 || binExtDigits == 2 || binExtDigits == 3)) {
                 throw new IllegalArgumentException("binExtDigits debe ser 1, 2 o 3 cuando usesBinExt='Y'");
-        } else { // 'N'
-            if (binExtDigits != null)
+            }
+            if (baseLen + binExtDigits > 9) {
+                throw new IllegalArgumentException("Entre el bin base y su extendido no se pueden usar mas de 9 digitos");
+            }
+        } else {
+            if (binExtDigits != null) {
                 throw new IllegalArgumentException("binExtDigits debe ser null cuando usesBinExt='N'");
+            }
         }
     }
 
-    public static Bin createNew(String bin, String name, String typeBin, String typeAccount,
+
+        public static Bin createNew(String bin, String name, String typeBin, String typeAccount,
                                 String compensationCod, String description,
                                 String usesBinExt, Integer binExtDigits,
                                 String createdByNullable) {
@@ -87,15 +94,20 @@ public record Bin(
             throw new IllegalArgumentException("typeAccount debe ser de 2 dígitos");
 
 
-        if (!("Y".equals(newUsesBinExt) || "N".equals(newUsesBinExt)))
-            throw new IllegalArgumentException("usesBinExt debe ser 'Y' o 'N'");
-        if ("Y".equals(newUsesBinExt)) {
-            if (newBinExtDigits == null || !(newBinExtDigits == 1 || newBinExtDigits == 2 || newBinExtDigits == 3))
+        int baseLen = bin.length();
+        if ("Y".equals(usesBinExt)) {
+            if (binExtDigits == null || !(binExtDigits == 1 || binExtDigits == 2 || binExtDigits == 3)) {
                 throw new IllegalArgumentException("binExtDigits debe ser 1, 2 o 3 cuando usesBinExt='Y'");
+            }
+            if (baseLen + binExtDigits > 9) {
+                throw new IllegalArgumentException("Entre el bin base y su extendido no se pueden usar mas de 9 digitos");
+            }
         } else {
-            if (newBinExtDigits != null)
+            if (binExtDigits != null) {
                 throw new IllegalArgumentException("binExtDigits debe ser null cuando usesBinExt='N'");
+            }
         }
+
 
         return new Bin(bin, newName, newTypeBin, newTypeAccount, newCompCod, newDescription,
                 status, createdAt, OffsetDateTime.now(), byNullable, newUsesBinExt, newBinExtDigits);
