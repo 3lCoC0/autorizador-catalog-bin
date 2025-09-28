@@ -11,5 +11,6 @@ public record ValidationCreateRequest(
         @NotNull ValidationDataType dataType,
         String valueFlag,
         Double valueNum,
-        String valueText
+        String valueText,
+        String createdBy
 ) {}

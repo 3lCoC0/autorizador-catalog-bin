@@ -8,5 +8,5 @@ public record ValidationUpdateRequest(
         String valueFlag,
         Double valueNum,
         String valueText,
-        @NotBlank String updatedBy
+        String updatedBy
 ) {}

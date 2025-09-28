@@ -4,5 +4,5 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 public record ValidationStatusRequest(
         @NotBlank @Pattern(regexp="A|I") String status,
-        @NotBlank String updatedBy
+        String updatedBy
 ) {}

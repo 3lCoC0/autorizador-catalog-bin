@@ -7,5 +7,5 @@ public record MapRuleRequest(
         @NotBlank String bin,
         @NotBlank String code,
         Object value,
-        @NotBlank String updatedBy
+        String updatedBy
 ) {}

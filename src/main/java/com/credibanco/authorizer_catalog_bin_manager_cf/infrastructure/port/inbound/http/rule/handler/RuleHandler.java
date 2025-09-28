@@ -1,3 +1,4 @@
+// infrastructure/port/inbound/http/rule/handler/RuleHandler.java
 package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.rule.handler;
 
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.rule.port.inbound.*;
@@ -6,12 +7,16 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule.ValidationMa
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.rule.dto.*;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.validation.ValidationUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
 
+import static com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.config.http.ApiResponses.*;
+
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class RuleHandler {
@@ -24,89 +29,120 @@ public class RuleHandler {
     private final ListRulesForSubtypeUseCase listRulesUC;
     private final ValidationUtil validation;
 
+    private static long ms(long t0) { return (System.nanoTime() - t0) / 1_000_000; }
+
     public Mono<ServerResponse> createValidation(ServerRequest req) {
+        long t0 = System.nanoTime();
         return req.bodyToMono(ValidationCreateRequest.class)
+                .doOnSubscribe(s -> log.info("RULES:validation:create:recv"))
                 .flatMap(validation::validate)
-                .flatMap(r -> createV.execute(r.code(), r.description(), r.dataType()))
+                .flatMap(r -> createV.execute(r.code(), r.description(), r.dataType(), r.createdBy()))
                 .map(this::toResp)
-                .flatMap(resp -> ServerResponse.created(
-                                req.uriBuilder().path("/{code}").build(resp.code()))
+                .doOnSuccess(v -> log.info("RULES:validation:create:done code={} elapsedMs={}", v.code(), ms(t0)))
+                .flatMap(resp -> ServerResponse.created(req.uriBuilder().path("/{code}").build(resp.code()))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .bodyValue(resp));
+                        .bodyValue(okEnvelope(req, "Operación exitosa", resp)));
     }
 
     public Mono<ServerResponse> updateValidation(ServerRequest req) {
+        long t0 = System.nanoTime();
         var code = req.pathVariable("code");
         return req.bodyToMono(ValidationUpdateRequest.class)
+                .doOnSubscribe(s -> log.info("RULES:validation:update:recv code={}", code))
                 .flatMap(validation::validate)
                 .flatMap(r -> updateV.execute(code, r.description(), r.updatedBy()))
                 .map(this::toResp)
-                .flatMap(resp -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValue(resp));
+                .doOnSuccess(v -> log.info("RULES:validation:update:done code={} elapsedMs={}", v.code(), ms(t0)))
+                .flatMap(resp -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(okEnvelope(req, "Operación exitosa", resp)));
     }
 
     public Mono<ServerResponse> changeValidationStatus(ServerRequest req) {
+        long t0 = System.nanoTime();
         var code = req.pathVariable("code");
         return req.bodyToMono(ValidationStatusRequest.class)
+                .doOnSubscribe(s -> log.info("RULES:validation:status:recv code={}", code))
                 .flatMap(validation::validate)
-                .flatMap(r -> changeVStatus.execute(code, r.status(),r.updatedBy()))
+                .flatMap(r -> changeVStatus.execute(code, r.status(), r.updatedBy()))
                 .map(this::toResp)
-                .flatMap(resp -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValue(resp));
+                .doOnSuccess(v -> log.info("RULES:validation:status:done code={} newStatus={} elapsedMs={}",
+                        v.code(), v.status(), ms(t0)))
+                .flatMap(resp -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(okEnvelope(req, "Operación exitosa", resp)));
     }
 
     public Mono<ServerResponse> getValidation(ServerRequest req) {
+        long t0 = System.nanoTime();
         var code = req.pathVariable("code");
-        return getV.execute(code).map(this::toResp)
-                .flatMap(resp -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValue(resp));
+        log.info("RULES:validation:get:recv code={}", code);
+        return getV.execute(code)
+                .map(this::toResp)
+                .doOnSuccess(v -> log.info("RULES:validation:get:done code={} elapsedMs={}", v.code(), ms(t0)))
+                .flatMap(resp -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(okEnvelope(req, "Operación exitosa", resp)));
     }
 
     public Mono<ServerResponse> listValidations(ServerRequest req) {
+        long t0 = System.nanoTime();
         var status = req.queryParam("status").orElse(null);
         var q      = req.queryParam("q").orElse(null);
         int page   = req.queryParam("page").map(Integer::parseInt).orElse(0);
         int size   = req.queryParam("size").map(Integer::parseInt).orElse(20);
-        var body = listV.execute(status, q, page, size).map(this::toResp);
-        return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).body(body, ValidationResponse.class);
+        log.info("RULES:validation:list:recv status={} q={} page={} size={}", status, q, page, size);
+        return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
+                .body(listV.execute(status, q, page, size).map(this::toResp), ValidationResponse.class)
+                .doOnTerminate(() -> log.info("RULES:validation:list:done elapsedMs={}", ms(t0)));
     }
 
     public Mono<ServerResponse> attachRule(ServerRequest req) {
+        long t0 = System.nanoTime();
         return req.bodyToMono(MapRuleRequest.class)
-                .flatMap(validation::validate) // aquí solo valida requeridos y no-nulos
-                .flatMap(r -> mapRuleUC.attach(
-                        r.subtypeCode(),
-                        r.bin(),
-                        r.code(),
-                        r.value(),       // <- único valor
-                        r.updatedBy()
-                ))
-                .flatMap(m -> ServerResponse.ok()
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .bodyValue(m));
+                .doOnSubscribe(s -> log.info("RULES:map:attach:recv"))
+                .flatMap(validation::validate)
+                .flatMap(r -> mapRuleUC.attach(r.subtypeCode(), r.bin(), r.code(), r.value(), r.updatedBy()))
+                .map(this::toMapResp)
+                .doOnSuccess(m -> log.info("RULES:map:attach:done st={} bin={} valId={} elapsedMs={}",
+                        m.subtypeCode(), m.bin(), m.validationId(), ms(t0)))
+                .flatMap(body -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(okEnvelope(req, "Operación exitosa", body)));
     }
 
     public Mono<ServerResponse> changeRuleStatus(ServerRequest req) {
+        long t0 = System.nanoTime();
         var st  = req.pathVariable("subtypeCode");
-        var bin = req.pathVariable("bin");
+        var bin = req.pathVariable("binEfectivo");
         var code= req.pathVariable("code");
         return req.bodyToMono(ValidationStatusRequest.class)
+                .doOnSubscribe(s -> log.info("RULES:map:status:recv st={} bin={} code={}", st, bin, code))
                 .flatMap(validation::validate)
-                .flatMap(r -> mapRuleUC.changeStatus(st, bin, code, r.status(), "api"))
-                .flatMap(m -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValue(m));
+                .flatMap(r -> mapRuleUC.changeStatus(st, bin, code, r.status(), r.updatedBy()))
+                .map(this::toMapResp)
+                .doOnSuccess(m -> log.info("RULES:map:status:done st={} bin={} valId={} newStatus={} elapsedMs={}",
+                        m.subtypeCode(), m.bin(), m.validationId(), m.status(), ms(t0)))
+                .flatMap(body -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(okEnvelope(req, "Operación exitosa", body)));
     }
 
     public Mono<ServerResponse> listRulesForSubtype(ServerRequest req) {
+        long t0 = System.nanoTime();
         var st  = req.pathVariable("subtypeCode");
         var eff = req.pathVariable("binEfectivo");
         var status = req.queryParam("status").orElse("A");
         int page = req.queryParam("page").map(Integer::parseInt).orElse(0);
         int size = req.queryParam("size").map(Integer::parseInt).orElse(100);
+
+        log.info("RULES:map:list:recv st={} eff={} status={} page={} size={}", st, eff, status, page, size);
+
         var body = listRulesUC.execute(st, eff, status, page, size).map(this::toMapResp);
-        return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).body(body, ValidationResponse.class);
+        return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
+                .body(body, ValidationResponse.class)
+                .doOnTerminate(() -> log.info("RULES:map:list:done elapsedMs={}", ms(t0)));
     }
 
     private ValidationResponse toResp(Validation v) {
         return new ValidationResponse(
                 v.validationId(), v.code(), v.description(), v.dataType(),
-                v.status(), v.validFrom(), v.validTo(), v.createdAt(), v.updatedAt(),v.updatedBy()
+                v.status(), v.validFrom(), v.validTo(), v.createdAt(), v.updatedAt(), v.updatedBy()
         );
     }
 

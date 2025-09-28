@@ -11,7 +11,10 @@ import org.springframework.transaction.reactive.TransactionalOperator;
 
 @Configuration
 public class RuleUseCaseConfig {
-    @Bean CreateValidationUseCase createValidationUseCase(ValidationRepository r, TransactionalOperator tx) { return new CreateValidationService(r, tx); }
+    @Bean
+    CreateValidationUseCase createValidationUseCase(ValidationRepository r, TransactionalOperator tx) {
+        return new CreateValidationService(r, tx);
+    }
     @Bean UpdateValidationUseCase updateValidationUseCase(ValidationRepository r) { return new UpdateValidationService(r); }
     @Bean ChangeValidationStatusUseCase changeValidationStatusUseCase(ValidationRepository r, TransactionalOperator tx) { return new ChangeValidationStatusService(r, tx); }
     @Bean GetValidationUseCase getValidationUseCase(ValidationRepository r) { return new GetValidationService(r); }
