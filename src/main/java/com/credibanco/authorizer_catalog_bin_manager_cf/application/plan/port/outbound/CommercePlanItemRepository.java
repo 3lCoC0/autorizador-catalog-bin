@@ -12,8 +12,8 @@ public interface CommercePlanItemRepository {
     Flux<PlanItem> listItems(Long planId, String status, int page, int size);
     Mono<PlanItem> insertMerchant(Long planId, String merchantId, String updatedBy);
     Mono<PlanItem> findByValue(Long planId, String value);
-
     Flux<String> findExistingValues(Long planId, List<String> values);
     Mono<Integer> insertMccBulk(Long planId, List<String> mccs, String by);
     Mono<Integer> insertMerchantBulk(Long planId, List<String> mids, String by);
+    Mono<Boolean> existsActiveByPlanId(Long planId);
 }

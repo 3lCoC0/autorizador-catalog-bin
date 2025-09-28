@@ -25,8 +25,9 @@ public class PlanUseCaseConfig {
     AssignPlanToSubtypeUseCase assignPlanToSubtypeUseCase(CommercePlanRepository pr,
                                                           SubtypePlanRepository sr,
                                                           com.credibanco.authorizer_catalog_bin_manager_cf.application.plan.port.outbound.SubtypeReadOnlyRepository subtypeRepo,
+                                                          CommercePlanItemRepository itemRepo,  // <— NUEVO
                                                           TransactionalOperator tx) {
-        return new AssignPlanToSubtypeService(pr, sr, subtypeRepo, tx);
+        return new AssignPlanToSubtypeService(pr, sr, subtypeRepo, itemRepo, tx);
     }
 
     @Bean GetPlanUseCase getPlanUseCase(CommercePlanRepository r) { return new GetPlanService(r); }
