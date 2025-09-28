@@ -9,5 +9,5 @@ public record PlanCreateRequest(
         @NotBlank String name,
         @NotNull CommerceValidationMode validationMode,
         String description,
-        @NotBlank String updatedBy
+        String updatedBy
 ) {}

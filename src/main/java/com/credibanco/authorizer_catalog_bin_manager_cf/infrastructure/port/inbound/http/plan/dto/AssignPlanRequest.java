@@ -5,5 +5,5 @@ import jakarta.validation.constraints.NotBlank;
 public record AssignPlanRequest(
         @NotBlank String subtypeCode,
         @NotBlank String planCode,
-        @NotBlank String updatedBy
+        String updatedBy
 ) {}

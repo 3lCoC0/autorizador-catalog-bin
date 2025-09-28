@@ -1,15 +1,16 @@
-
 package com.credibanco.authorizer_catalog_bin_manager_cf.application.plan.use_case;
 
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.plan.port.inbound.ChangePlanItemStatusUseCase;
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.plan.port.outbound.CommercePlanItemRepository;
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.plan.port.outbound.CommercePlanRepository;
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.plan.PlanItem;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Mono;
 
 import java.util.NoSuchElementException;
 
+@Slf4j
 public record ChangePlanItemStatusService(CommercePlanRepository planRepo,
                                           CommercePlanItemRepository itemRepo,
                                           TransactionalOperator tx)
@@ -17,6 +18,7 @@ public record ChangePlanItemStatusService(CommercePlanRepository planRepo,
 
     @Override
     public Mono<PlanItem> execute(String planCode, String value, String status, String updatedBy) {
+        log.info("ChangePlanItemStatusService IN planCode={} value={} status={} by={}", planCode, value, status, updatedBy);
         if (!"A".equals(status) && !"I".equals(status)) {
             return Mono.error(new IllegalArgumentException("status inválido (A|I)"));
         }
@@ -24,6 +26,8 @@ public record ChangePlanItemStatusService(CommercePlanRepository planRepo,
                 .switchIfEmpty(Mono.error(new NoSuchElementException("Plan no encontrado")))
                 .flatMap(p -> itemRepo.changeStatus(p.planId(), value, status, updatedBy))
                 .switchIfEmpty(Mono.error(new NoSuchElementException("Ítem no encontrado")))
+                .doOnSuccess(pi -> log.info("ChangePlanItemStatusService OK planId={} itemId={} status={}",
+                        pi.planId(), pi.planItemId(), status))
                 .as(tx::transactional);
     }
 }

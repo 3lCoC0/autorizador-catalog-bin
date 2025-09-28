@@ -1,18 +1,25 @@
 package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.plan.handler;
 
+import com.credibanco.authorizer_catalog_bin_manager_cf.application.plan.model.PlanItemsBulkResult;
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.plan.port.inbound.*;
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.plan.CommercePlan;
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.plan.PlanItem;
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.plan.SubtypePlanLink;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.config.http.ApiResponses;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.logging.CorrelationWebFilter;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.plan.dto.*;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.validation.ValidationUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class PlanHandler {
@@ -28,26 +35,49 @@ public class PlanHandler {
     private final ValidationUtil validation;
     private final ChangePlanItemStatusUseCase changeItemStatusUC;
 
-    // === CRUD Plan ===
+    private String resolveUser(ServerRequest req, String bodyUser) {
+        if (bodyUser != null && !bodyUser.isBlank()) return bodyUser;
+        String headerUser = req.headers().firstHeader("X-User");
+        return (headerUser != null && !headerUser.isBlank()) ? headerUser : null;
+    }
+
+
+    private Mono<ServerResponse> ok(ServerRequest req, String detail, Object data) {
+        var envelope = ApiResponses.okEnvelope(req, detail, data);
+        return ApiResponses.jsonOk().bodyValue(envelope);
+    }
+
+
 
     public Mono<ServerResponse> create(ServerRequest req) {
+        String cid = req.headers().firstHeader(CorrelationWebFilter.CID);
+        log.info("create plan - IN cid={}", cid);
+
         return req.bodyToMono(PlanCreateRequest.class)
                 .flatMap(validation::validate)
-                .flatMap(r -> createUC.execute(r.code(), r.name(), r.validationMode(), r.description(), r.updatedBy()))
+                .flatMap(r -> createUC.execute(
+                        r.code(), r.name(), r.validationMode(), r.description(),
+                        resolveUser(req, r.updatedBy())
+                ))
                 .map(this::toResp)
-                .flatMap(resp -> ServerResponse.created(
-                                req.uriBuilder().path("/{code}").build(resp.code()))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .bodyValue(resp));
+                .flatMap(resp -> {
+                    log.info("create plan - OK cid={} code={}", cid, resp.code());
+                    return ApiResponses.jsonCreated(req, resp.code())
+                            .bodyValue(ApiResponses.okEnvelope(req, "Plan creado", resp));
+                });
     }
 
     public Mono<ServerResponse> get(ServerRequest req) {
-        var code = req.pathVariable("code");
+        String code = req.pathVariable("code");
+        String cid = req.headers().firstHeader(CorrelationWebFilter.CID);
+        log.info("get plan - IN cid={} code={}", cid, code);
+
         return getUC.execute(code)
                 .map(this::toResp)
-                .flatMap(resp -> ServerResponse.ok()
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .bodyValue(resp));
+                .flatMap(resp -> {
+                    log.info("get plan - OK cid={} code={}", cid, code);
+                    return ok(req, "Consulta exitosa", resp);
+                });
     }
 
     public Mono<ServerResponse> list(ServerRequest req) {
@@ -55,59 +85,120 @@ public class PlanHandler {
         var q      = req.queryParam("q").orElse(null);
         int page   = req.queryParam("page").map(Integer::parseInt).orElse(0);
         int size   = req.queryParam("size").map(Integer::parseInt).orElse(20);
-        var body   = listUC.execute(status, q, page, size).map(this::toResp);
-        return ServerResponse.ok()
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(body, PlanResponse.class);
+
+        String cid = req.headers().firstHeader(CorrelationWebFilter.CID);
+        log.info("list plans - IN cid={} status={} q={} page={} size={}", cid, status, q, page, size);
+
+        Flux<PlanResponse> body = listUC.execute(status, q, page, size).map(this::toResp);
+
+        return body.collectList().flatMap(list -> {
+            log.info("list plans - OK cid={} count={}", cid, list.size());
+            String detail = list.isEmpty() ? "Sin planes para el filtro" : "Consulta exitosa";
+            return ok(req, detail, list);
+        });
     }
 
     public Mono<ServerResponse> update(ServerRequest req) {
         var code = req.pathVariable("code");
+        String cid = req.headers().firstHeader(CorrelationWebFilter.CID);
+        log.info("update plan - IN cid={} code={}", cid, code);
+
         return req.bodyToMono(PlanUpdateRequest.class)
                 .flatMap(validation::validate)
-                .flatMap(r -> updateUC.execute(code, r.name(), r.description(), r.validationMode(), r.updatedBy()))
+                .flatMap(r -> updateUC.execute(code, r.name(), r.description(), r.validationMode(),
+                        resolveUser(req, r.updatedBy())))
                 .map(this::toResp)
-                .flatMap(resp -> ServerResponse.ok()
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .bodyValue(resp));
+                .flatMap(resp -> {
+                    log.info("update plan - OK cid={} code={}", cid, code);
+                    return ok(req, "Plan actualizado", resp);
+                });
     }
 
     public Mono<ServerResponse> changeStatus(ServerRequest req) {
+        String cid = req.headers().firstHeader(CorrelationWebFilter.CID);
+        log.info("change plan status - IN cid={}", cid);
+
         return req.bodyToMono(PlanStatusRequest.class)
                 .flatMap(validation::validate)
-                .flatMap(r -> changeStatusUC.execute(r.planCode(), r.status(), r.updatedBy()))
+                .flatMap(r -> changeStatusUC.execute(r.planCode(), r.status(),
+                        resolveUser(req, r.updatedBy())))
                 .map(this::toResp)
-                .flatMap(resp -> ServerResponse.ok()
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .bodyValue(resp));
+                .flatMap(resp -> {
+                    log.info("change plan status - OK cid={} code={}", cid, resp.code());
+                    return ok(req, "Estado de plan actualizado", resp);
+                });
     }
 
-    // === Items (devuelven dominio mapeado a DTO) ===
 
     public Mono<ServerResponse> addItem(ServerRequest req) {
+        String cid = req.headers().firstHeader(CorrelationWebFilter.CID);
+        log.info("add plan item(s) - IN cid={}", cid);
+
         return req.bodyToMono(PlanItemRequest.class)
                 .flatMap(validation::validate)
-                .flatMap(r -> addItemUC.addValue(r.planCode(), r.value(), r.updatedBy()))
-                .map(this::toItemResp)
-                .flatMap(resp -> ServerResponse.created(
-                                // Nota: el primer placeholder corresponde a {code} pero tenemos planId; lo mantenemos como referencia
-                                // Si quieres una Location RESTful real, podrías usar "/v1/plans/{code}/items" desde el router
-                                req.uriBuilder().path("/{code}/items/{id}")
-                                        .build(resp.planId(), resp.planItemId())
-                        )
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .bodyValue(resp));
+                .flatMap(r -> {
+                    var by = resolveUser(req, r.updatedBy());
+
+                    boolean hasBulk   = r.values() != null && !r.values().isEmpty();
+                    boolean hasSingle = r.value() != null && !r.value().isBlank();
+
+                    if (!hasBulk && !hasSingle) {
+                        return Mono.error(new IllegalArgumentException("Debe enviar 'value' (single) o 'values' (bulk)"));
+                    }
+
+                    // Preferimos BULK si llegó ambos por error del cliente
+                    if (hasBulk) {
+                        return addItemUC.addMany(r.planCode(), r.values(), by)
+                                .map(this::toBulkDto)
+                                .flatMap(resp -> ApiResponses.jsonOk()
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .bodyValue(ApiResponses.okEnvelope(req, "Carga masiva procesada", resp)));
+                    }
+
+                    // SINGLE (compatible con la versión anterior)
+                    return addItemUC.addValue(r.planCode(), r.value(), by)
+                            .map(this::toItemResp)
+                            .flatMap(resp -> {
+                                log.info("add plan item (single) - OK cid={} planId={} itemId={}",
+                                        cid, resp.planId(), resp.planItemId());
+                                return ServerResponse.created(
+                                                req.uriBuilder().path("/{code}/items/{id}")
+                                                        .build(resp.planId(), resp.planItemId())
+                                        )
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .bodyValue(ApiResponses.okEnvelope(req, "Ítem agregado", resp));
+                            });
+                });
     }
 
+
+    private PlanItemsBulkResponse toBulkDto(PlanItemsBulkResult r) {
+        return new PlanItemsBulkResponse(
+                r.planCode(),
+                r.requested(),
+                r.inserted(),
+                r.duplicates(),
+                r.invalid(),
+                r.invalidValues(),
+                r.duplicateValues()
+        );
+    }
+
+
     public Mono<ServerResponse> changeItemStatus(ServerRequest req) {
+        String cid = req.headers().firstHeader(CorrelationWebFilter.CID);
+        log.info("change item status - IN cid={}", cid);
+
         return req.bodyToMono(PlanItemStatus.class)
                 .flatMap(validation::validate)
                 .flatMap(r -> changeItemStatusUC.execute(
-                        r.planCode(), r.value(), r.status(), r.updatedBy()))
+                        r.planCode(), r.value(), r.status(),
+                        resolveUser(req, r.updatedBy())))
                 .map(this::toItemResp)
-                .flatMap(resp -> ServerResponse.ok()
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .bodyValue(resp));
+                .flatMap(resp -> {
+                    log.info("change item status - OK cid={} planId={} itemId={}", cid, resp.planId(), resp.planItemId());
+                    return ok(req, "Estado de ítem actualizado", resp);
+                });
     }
 
     public Mono<ServerResponse> listItems(ServerRequest req) {
@@ -116,25 +207,42 @@ public class PlanHandler {
         int size = req.queryParam("size").map(Integer::parseInt).orElse(100);
         String status = req.queryParam("status")
                 .map(String::trim).map(String::toUpperCase)
-                .filter(s -> !"ALL".equals(s)).orElse("A"); // default: activos
-        var body = listItemsUC.list(code, page, size, status).map(this::toItemResp);
-        return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).body(body, PlanItemResponse.class);
+                .filter(s -> !"ALL".equals(s)).orElse("A");
+
+        String cid = req.headers().firstHeader(CorrelationWebFilter.CID);
+        log.info("list plan items - IN cid={} code={} status={} page={} size={}", cid, code, status, page, size);
+
+        return listItemsUC.list(code, page, size, status).map(this::toItemResp).collectList()
+                .flatMap(list -> {
+                    String detail = list.isEmpty()
+                            ? "A".equals(status)
+                            ? "El plan no tiene ítems activos"
+                            : "El plan no tiene ítems para el filtro"
+                            : "Consulta exitosa";
+                    log.info("list plan items - OK cid={} code={} count={}", cid, code, list.size());
+                    return ok(req, detail, list);
+                });
     }
 
 
-    // === Subtype ← Plan (devuelve link de dominio como DTO) ===
 
     public Mono<ServerResponse> assignToSubtype(ServerRequest req) {
+        String cid = req.headers().firstHeader(CorrelationWebFilter.CID);
+        log.info("assign plan to subtype - IN cid={}", cid);
+
         return req.bodyToMono(AssignPlanRequest.class)
                 .flatMap(validation::validate)
-                .flatMap(r -> assignUC.assign(r.subtypeCode(), r.planCode(), r.updatedBy()))
+                .flatMap(r -> assignUC.assign(r.subtypeCode(), r.planCode(),
+                        resolveUser(req, r.updatedBy())))
                 .map(this::toLinkResp)
-                .flatMap(resp -> ServerResponse.ok()
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .bodyValue(resp));
+                .flatMap(resp -> {
+                    log.info("assign plan to subtype - OK cid={} subtype={} planId={}",
+                            cid, resp.subtypeCode(), resp.planId());
+                    return ok(req, "Plan asignado al SUBTYPE", resp);
+                });
     }
 
-    // === Mapeos a DTO ===
+
 
     private PlanResponse toResp(CommercePlan p) {
         return new PlanResponse(

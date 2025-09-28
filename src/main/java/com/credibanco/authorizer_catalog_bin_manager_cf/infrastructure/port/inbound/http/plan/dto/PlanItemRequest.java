@@ -2,8 +2,11 @@ package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inb
 
 import jakarta.validation.constraints.NotBlank;
 
+import java.util.List;
+
 public record PlanItemRequest(
         @NotBlank String planCode,
-        @NotBlank String value,
-        @NotBlank String updatedBy
+        String value,
+        List<String> values,
+        String updatedBy
 ) {}

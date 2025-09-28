@@ -7,7 +7,7 @@ import jakarta.validation.constraints.Pattern;
 public record PlanItemStatus(
         @NotBlank String planCode,
         @NotBlank String value,
-        @NotBlank @Pattern(regexp = "A|I") String status, // para "borrar" usa I
-        @NotBlank String updatedBy
+        @NotBlank @Pattern(regexp = "A|I") String status,
+        String updatedBy
 
 ) {}
