@@ -2,6 +2,8 @@ package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inb
 
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.agency.port.inbound.*;
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.agency.Agency;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppError;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppException;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.agency.dto.*;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.validation.ValidationUtil;
 import lombok.RequiredArgsConstructor;
@@ -26,12 +28,19 @@ public class AgencyHandler {
     private final ValidationUtil validation;
 
     private static long elapsedMs(long t0) { return (System.nanoTime() - t0) / 1_000_000; }
+    private String resolveUser(ServerRequest req, String fromBody) {
+        String hdr = req.headers().firstHeader("X-User");
+        if (fromBody != null && !fromBody.isBlank()) return fromBody;
+        return (hdr != null && !hdr.isBlank()) ? hdr : null;
+    }
 
     public Mono<ServerResponse> create(ServerRequest req) {
         long t0 = System.nanoTime();
         return req.bodyToMono(AgencyCreateRequest.class)
                 .doOnSubscribe(s -> log.info("AGENCY:create:recv"))
-                .flatMap(validation::validate)
+                // ✅ validar con código "07"
+                .flatMap(r -> validation.validate(r, AppError.AGENCY_INVALID_DATA))
+                // construir aggregate; si el factory lanza IAE, lo mapeamos a AppException "07"
                 .map(r -> Agency.createNew(
                         r.subtypeCode(), r.agencyCode(), r.name(),
                         r.agencyNit(), r.address(), r.phone(), r.municipalityDaneCode(),
@@ -40,8 +49,10 @@ public class AgencyHandler {
                         r.cardCustodianSecondary(), r.cardCustodianSecondaryId(),
                         r.pinCustodianPrimary(), r.pinCustodianPrimaryId(),
                         r.pinCustodianSecondary(), r.pinCustodianSecondaryId(),
-                        r.description(), r.createdBy() // ← opcional
+                        r.description(), resolveUser(req, r.createdBy()) // opcional X-User
                 ))
+                .onErrorMap(IllegalArgumentException.class,
+                        e -> new AppException(AppError.AGENCY_INVALID_DATA, e.getMessage()))
                 .flatMap(createUC::execute)
                 .map(this::toResponse)
                 .doOnSuccess(a -> log.info("AGENCY:create:done st={} ag={} status={} elapsedMs={}",
@@ -57,9 +68,12 @@ public class AgencyHandler {
         long t0 = System.nanoTime();
         String subtypeCode = req.pathVariable("subtypeCode");
         String agencyCode  = req.pathVariable("agencyCode");
+
         return req.bodyToMono(AgencyUpdateRequest.class)
                 .doOnSubscribe(s -> log.info("AGENCY:update:recv st={} ag={}", subtypeCode, agencyCode))
-                .flatMap(validation::validate)
+                // ✅ validar con código "07"
+                .flatMap(r -> validation.validate(r, AppError.AGENCY_INVALID_DATA))
+                // construir aggregate para update; mapear IAE → AppException "07"
                 .map(r -> new Agency(
                         subtypeCode, agencyCode, r.name(),
                         r.agencyNit(), r.address(), r.phone(), r.municipalityDaneCode(),
@@ -68,8 +82,10 @@ public class AgencyHandler {
                         r.cardCustodianSecondary(), r.cardCustodianSecondaryId(),
                         r.pinCustodianPrimary(), r.pinCustodianPrimaryId(),
                         r.pinCustodianSecondary(), r.pinCustodianSecondaryId(),
-                        r.description(), "A", null, null, r.updatedBy() // status real lo preserva el merge
+                        r.description(), "A", null, null, resolveUser(req, r.updatedBy())
                 ))
+                .onErrorMap(IllegalArgumentException.class,
+                        e -> new AppException(AppError.AGENCY_INVALID_DATA, e.getMessage()))
                 .flatMap(updateUC::execute)
                 .map(this::toResponse)
                 .doOnSuccess(a -> log.info("AGENCY:update:done st={} ag={} elapsedMs={}",
@@ -83,10 +99,13 @@ public class AgencyHandler {
         long t0 = System.nanoTime();
         String subtypeCode = req.pathVariable("subtypeCode");
         String agencyCode  = req.pathVariable("agencyCode");
+
         return req.bodyToMono(AgencyStatusRequest.class)
                 .doOnSubscribe(s -> log.info("AGENCY:status:recv st={} ag={}", subtypeCode, agencyCode))
-                .flatMap(validation::validate)
-                .flatMap(r -> changeStatusUC.execute(subtypeCode, agencyCode, r.status(), r.updatedBy()))
+                // ✅ validar con código "07"
+                .flatMap(r -> validation.validate(r, AppError.AGENCY_INVALID_DATA))
+                .flatMap(r -> changeStatusUC.execute(
+                        subtypeCode, agencyCode, r.status(), resolveUser(req, r.updatedBy())))
                 .map(this::toResponse)
                 .doOnSuccess(a -> log.info("AGENCY:status:done st={} ag={} newStatus={} elapsedMs={}",
                         a.subtypeCode(), a.agencyCode(), a.status(), elapsedMs(t0)))

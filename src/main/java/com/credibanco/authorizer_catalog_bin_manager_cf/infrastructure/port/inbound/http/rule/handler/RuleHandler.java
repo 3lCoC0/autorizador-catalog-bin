@@ -4,6 +4,7 @@ package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inb
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.rule.port.inbound.*;
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule.Validation;
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule.ValidationMap;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppError;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.rule.dto.*;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.validation.ValidationUtil;
 import lombok.RequiredArgsConstructor;
@@ -37,7 +38,8 @@ public class RuleHandler {
         long t0 = System.nanoTime();
         return req.bodyToMono(ValidationCreateRequest.class)
                 .doOnSubscribe(s -> log.info("RULES:validation:create:recv"))
-                .flatMap(validation::validate)
+                // ✅ nuevo validador con código "11"
+                .flatMap(r -> validation.validate(r, AppError.RULES_VALIDATION_INVALID_DATA))
                 .flatMap(r -> createV.execute(r.code(), r.description(), r.dataType(), r.createdBy()))
                 .map(this::toResp)
                 .doOnSuccess(v -> log.info("RULES:validation:create:done code={} elapsedMs={}", v.code(), ms(t0)))
@@ -46,30 +48,36 @@ public class RuleHandler {
                         .bodyValue(okEnvelope(req, "Operación exitosa", resp)));
     }
 
+    // RULES: Validation - update
     public Mono<ServerResponse> updateValidation(ServerRequest req) {
         long t0 = System.nanoTime();
         var code = req.pathVariable("code");
         return req.bodyToMono(ValidationUpdateRequest.class)
                 .doOnSubscribe(s -> log.info("RULES:validation:update:recv code={}", code))
-                .flatMap(validation::validate)
+                // ✅ "11"
+                .flatMap(r -> validation.validate(r, AppError.RULES_VALIDATION_INVALID_DATA))
                 .flatMap(r -> updateV.execute(code, r.description(), r.updatedBy()))
                 .map(this::toResp)
                 .doOnSuccess(v -> log.info("RULES:validation:update:done code={} elapsedMs={}", v.code(), ms(t0)))
-                .flatMap(resp -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
+                .flatMap(resp -> ServerResponse.ok()
+                        .contentType(MediaType.APPLICATION_JSON)
                         .bodyValue(okEnvelope(req, "Operación exitosa", resp)));
     }
+
 
     public Mono<ServerResponse> changeValidationStatus(ServerRequest req) {
         long t0 = System.nanoTime();
         var code = req.pathVariable("code");
         return req.bodyToMono(ValidationStatusRequest.class)
                 .doOnSubscribe(s -> log.info("RULES:validation:status:recv code={}", code))
-                .flatMap(validation::validate)
+                // ✅ "11"
+                .flatMap(r -> validation.validate(r, AppError.RULES_VALIDATION_INVALID_DATA))
                 .flatMap(r -> changeVStatus.execute(code, r.status(), r.updatedBy()))
                 .map(this::toResp)
                 .doOnSuccess(v -> log.info("RULES:validation:status:done code={} newStatus={} elapsedMs={}",
                         v.code(), v.status(), ms(t0)))
-                .flatMap(resp -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
+                .flatMap(resp -> ServerResponse.ok()
+                        .contentType(MediaType.APPLICATION_JSON)
                         .bodyValue(okEnvelope(req, "Operación exitosa", resp)));
     }
 
@@ -96,18 +104,22 @@ public class RuleHandler {
                 .doOnTerminate(() -> log.info("RULES:validation:list:done elapsedMs={}", ms(t0)));
     }
 
+    // RULES: Map/Attach rule
     public Mono<ServerResponse> attachRule(ServerRequest req) {
         long t0 = System.nanoTime();
         return req.bodyToMono(MapRuleRequest.class)
                 .doOnSubscribe(s -> log.info("RULES:map:attach:recv"))
-                .flatMap(validation::validate)
+                // ✅ "14"
+                .flatMap(r -> validation.validate(r, AppError.RULES_MAP_INVALID_DATA))
                 .flatMap(r -> mapRuleUC.attach(r.subtypeCode(), r.bin(), r.code(), r.value(), r.updatedBy()))
                 .map(this::toMapResp)
                 .doOnSuccess(m -> log.info("RULES:map:attach:done st={} bin={} valId={} elapsedMs={}",
                         m.subtypeCode(), m.bin(), m.validationId(), ms(t0)))
-                .flatMap(body -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
+                .flatMap(body -> ServerResponse.ok()
+                        .contentType(MediaType.APPLICATION_JSON)
                         .bodyValue(okEnvelope(req, "Operación exitosa", body)));
     }
+
 
     public Mono<ServerResponse> changeRuleStatus(ServerRequest req) {
         long t0 = System.nanoTime();
@@ -116,12 +128,14 @@ public class RuleHandler {
         var code= req.pathVariable("code");
         return req.bodyToMono(ValidationStatusRequest.class)
                 .doOnSubscribe(s -> log.info("RULES:map:status:recv st={} bin={} code={}", st, bin, code))
-                .flatMap(validation::validate)
+                // ✅ "14"
+                .flatMap(r -> validation.validate(r, AppError.RULES_MAP_INVALID_DATA))
                 .flatMap(r -> mapRuleUC.changeStatus(st, bin, code, r.status(), r.updatedBy()))
                 .map(this::toMapResp)
                 .doOnSuccess(m -> log.info("RULES:map:status:done st={} bin={} valId={} newStatus={} elapsedMs={}",
                         m.subtypeCode(), m.bin(), m.validationId(), m.status(), ms(t0)))
-                .flatMap(body -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
+                .flatMap(body -> ServerResponse.ok()
+                        .contentType(MediaType.APPLICATION_JSON)
                         .bodyValue(okEnvelope(req, "Operación exitosa", body)));
     }
 

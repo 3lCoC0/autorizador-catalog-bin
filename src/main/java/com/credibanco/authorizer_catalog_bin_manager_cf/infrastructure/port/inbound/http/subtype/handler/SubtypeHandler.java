@@ -2,6 +2,7 @@
 package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.subtype.handler;
 
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.subtype.port.inbound.*;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppError;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.subtype.dto.*;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.validation.ValidationUtil;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,13 @@ public class SubtypeHandler {
     private final ChangeSubtypeStatusUseCase changeStatusUC;
     private static long elapsedMs(long t0) { return (System.nanoTime() - t0) / 1_000_000; }
 
+    private String resolveUser(ServerRequest req, String fromBody) {
+        String hdr = req.headers().firstHeader("X-User");
+        return (fromBody != null && !fromBody.isBlank())
+                ? fromBody
+                : (hdr != null && !hdr.isBlank() ? hdr : null);
+    }
+
     private SubtypeResponse toResponse(com.credibanco.authorizer_catalog_bin_manager_cf.domain.subtype.Subtype s) {
         return new SubtypeResponse(
                 s.subtypeCode(), s.bin(), s.name(), s.description(),
@@ -35,17 +43,20 @@ public class SubtypeHandler {
         );
     }
 
+
+
     public Mono<ServerResponse> create(ServerRequest req) {
         long t0 = System.nanoTime();
         return req.bodyToMono(SubtypeCreateRequest.class)
                 .doOnSubscribe(s -> log.info("SUBTYPE:create:recv"))
-                .flatMap(validation::validate)
+                .flatMap(r -> validation.validate(r, AppError.SUBTYPE_INVALID_DATA))
                 .flatMap(r -> {
                     log.debug("SUBTYPE:create:validated bin={} code={} ownerType={} ext='{}'",
                             r.bin(), r.subtypeCode(), r.ownerIdType(), r.binExt());
                     return createUC.execute(
                             r.subtypeCode(), r.bin(), r.name(), r.description(),
-                            r.ownerIdType(), r.ownerIdNumber(), r.binExt(), r.createdBy()
+                            r.ownerIdType(), r.ownerIdNumber(), r.binExt(),
+                            resolveUser(req, r.createdBy())
                     );
                 })
                 .map(this::toResponse)
@@ -83,12 +94,13 @@ public class SubtypeHandler {
 
         return req.bodyToMono(SubtypeUpdateRequest.class)
                 .doOnSubscribe(s -> log.info("SUBTYPE:update:recv bin={} code={}", bin, code))
-                .flatMap(validation::validate)
+                .flatMap(r -> validation.validate(r, AppError.SUBTYPE_INVALID_DATA))
                 .flatMap(r -> {
                     log.debug("SUBTYPE:update:validated bin={} code={} ext='{}'", bin, code, r.binExt());
                     return updateUC.execute(
                             bin, code, r.name(), r.description(),
-                            r.ownerIdType(), r.ownerIdNumber(), r.binExt(), r.updatedBy()
+                            r.ownerIdType(), r.ownerIdNumber(), r.binExt(),
+                            resolveUser(req, r.updatedBy()) // opcional
                     );
                 })
                 .map(this::toResponse)
@@ -121,8 +133,9 @@ public class SubtypeHandler {
 
         return req.bodyToMono(SubtypeStatusRequest.class)
                 .doOnSubscribe(s -> log.info("SUBTYPE:status:recv bin={} code={}", bin, code))
-                .flatMap(validation::validate)
-                .flatMap(r -> changeStatusUC.execute(bin, code, r.status(), r.updatedBy()))
+                // ✅ nuevo validador con código "04"
+                .flatMap(r -> validation.validate(r, AppError.SUBTYPE_INVALID_DATA))
+                .flatMap(r -> changeStatusUC.execute(bin, code, r.status(), resolveUser(req, r.updatedBy())))
                 .map(this::toResponse)
                 .doOnSuccess(b -> log.info("SUBTYPE:status:done bin={} code={} newStatus={} elapsedMs={}",
                         b.bin(), b.subtypeCode(), b.status(), elapsedMs(t0)))

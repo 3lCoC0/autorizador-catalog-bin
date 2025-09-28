@@ -11,7 +11,6 @@ public final class ApiResponses {
     private ApiResponses() {}
 
     public static String cid(ServerRequest req) {
-        // El filtro ya lo puso en la respuesta; si no, tomo del request
         String fromResp = req.exchange().getResponse().getHeaders().getFirst(CorrelationWebFilter.CID);
         return (fromResp != null && !fromResp.isBlank())
                 ? fromResp
@@ -29,5 +28,9 @@ public final class ApiResponses {
     public static ServerResponse.BodyBuilder jsonCreated(ServerRequest req, String locationBin) {
         return ServerResponse.created(req.uriBuilder().path("/{bin}").build(locationBin))
                 .contentType(MediaType.APPLICATION_JSON);
+    }
+
+    public static ApiError errorEnvelope(String code, String message, String cid, String path) {
+        return new ApiError(code, message, cid, Instant.now().toString(), path);
     }
 }

@@ -1,11 +1,16 @@
 package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.bin.handler;
 
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.bin.port.inbound.*;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.config.http.ApiResponses;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppError;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppException;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.bin.dto.*;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.validation.ValidationUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
@@ -52,29 +57,26 @@ public class BinHandler {
         );
     }
 
-    // -------- Endpoints --------
-
     public Mono<ServerResponse> create(ServerRequest req) {
         long t0 = System.nanoTime();
         return req.bodyToMono(BinCreateRequest.class)
-                .doOnSubscribe(s -> log.info("BIN:create:recv"))
-                .flatMap(validation::validate)
-                .flatMap(r -> {
-                    log.debug("BIN:create:validated bin={}, usesExt={}, extDigits={}", r.bin(), r.usesBinExt(), r.binExtDigits());
-                    return checkExtConstraints(r.bin(), r.usesBinExt(), r.binExtDigits())
-                            .then(createUC.execute(
-                                    r.bin(), r.name(), r.typeBin(), r.typeAccount(),
-                                    r.compensationCod(), r.description(),
-                                    r.usesBinExt(), r.binExtDigits(),
-                                    r.createdBy()
-                            ));
-                })
+                .flatMap(r -> validation.validate(r, AppError.BIN_INVALID_DATA)) // "01"
+                .flatMap(r -> checkExtConstraints(r.bin(), r.usesBinExt(), r.binExtDigits())
+                        .onErrorMap(IllegalArgumentException.class,
+                                e -> new AppException(AppError.BIN_INVALID_DATA, e.getMessage()))
+                        .then(createUC.execute(
+                                r.bin(), r.name(), r.typeBin(), r.typeAccount(),
+                                r.compensationCod(), r.description(),
+                                r.usesBinExt(), r.binExtDigits(),
+                                r.createdBy())))
                 .doOnSuccess(b -> log.info("BIN:create:done bin={}, status={}, elapsedMs={}",
                         b.bin(), b.status(), elapsedMs(t0)))
                 .map(this::toResponse)
-                .flatMap(body -> jsonCreated(req, body.bin())
-                        .bodyValue(okEnvelope(req, "Bin se creo exitosamente", body)));
+                .flatMap(body -> ApiResponses.jsonCreated(req, body.bin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(ApiResponses.okEnvelope(req, "Bin se creo exitosamente", body)));
     }
+
 
     public Mono<ServerResponse> list(ServerRequest req) {
         long t0 = System.nanoTime();
@@ -93,21 +95,28 @@ public class BinHandler {
         long t0 = System.nanoTime();
         return req.bodyToMono(BinUpdateRequest.class)
                 .doOnSubscribe(s -> log.info("BIN:update:recv"))
-                .flatMap(validation::validate)
+                .flatMap(r -> validation.validate(r, AppError.BIN_INVALID_DATA))
                 .flatMap(r -> {
-                    log.debug("BIN:update:validated bin={}, usesExt={}, extDigits={}", r.bin(), r.usesBinExt(), r.binExtDigits());
+                    log.debug("BIN:update:validated bin={}, usesExt={}, extDigits={}",
+                            r.bin(), r.usesBinExt(), r.binExtDigits());
+
+                    String by = resolveUser(req, r.updatedBy());
                     return checkExtConstraints(r.bin(), r.usesBinExt(), r.binExtDigits())
+                            .onErrorMap(IllegalArgumentException.class,
+                                    e -> new AppException(AppError.BIN_INVALID_DATA, e.getMessage()))
                             .then(updateUC.execute(
                                     r.bin(), r.name(), r.typeBin(), r.typeAccount(),
                                     r.compensationCod(), r.description(),
                                     r.usesBinExt(), r.binExtDigits(),
-                                    r.updatedBy() // opcional
+                                    by
                             ));
                 })
                 .doOnSuccess(b -> log.info("BIN:update:done bin={}, status={}, elapsedMs={}",
                         b.bin(), b.status(), elapsedMs(t0)))
                 .map(this::toResponse)
-                .flatMap(body -> jsonOk().bodyValue(okEnvelope(req, "Operación exitosa", body)));
+                .flatMap(body -> ApiResponses.jsonOk()
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(ApiResponses.okEnvelope(req, "Operación exitosa", body)));
     }
 
     public Mono<ServerResponse> get(ServerRequest req) {
@@ -121,16 +130,25 @@ public class BinHandler {
                 .flatMap(body -> jsonOk().bodyValue(okEnvelope(req, "Operación exitosa", body)));
     }
 
+
     public Mono<ServerResponse> changeStatus(ServerRequest req) {
         long t0 = System.nanoTime();
         String bin = req.pathVariable("bin");
         return req.bodyToMono(BinStatusUpdateRequest.class)
                 .doOnSubscribe(s -> log.info("BIN:status:recv bin={}", bin))
-                .flatMap(validation::validate)
-                .flatMap(r -> changeStatusUC.execute(bin, r.status(), r.updatedBy())) // updatedBy opcional
+                .flatMap(r -> validation.validate(r, AppError.BIN_INVALID_DATA))
+                .flatMap(r -> changeStatusUC.execute(bin, r.status(), r.updatedBy()))
                 .doOnSuccess(b -> log.info("BIN:status:done bin={}, newStatus={}, elapsedMs={}",
                         b.bin(), b.status(), elapsedMs(t0)))
                 .map(this::toResponse)
-                .flatMap(body -> jsonOk().bodyValue(okEnvelope(req, "Se cambio el STATUS del bin correctamente", body)));
+                .flatMap(body -> jsonOk()
+                        .bodyValue(okEnvelope(req, "Se cambio el STATUS del bin correctamente", body)));
+    }
+
+
+    private String resolveUser(ServerRequest req, String fromBody) {
+        String hdr = req.headers().firstHeader("X-User");
+        return StringUtils.hasText(fromBody) ? fromBody
+                : (StringUtils.hasText(hdr) ? hdr : null); // opcional
     }
 }

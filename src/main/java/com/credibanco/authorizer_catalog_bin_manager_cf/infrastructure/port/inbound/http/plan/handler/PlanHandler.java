@@ -6,6 +6,8 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.domain.plan.CommercePlan
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.plan.PlanItem;
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.plan.SubtypePlanLink;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.config.http.ApiResponses;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppError;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppException;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.logging.CorrelationWebFilter;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.plan.dto.*;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.validation.ValidationUtil;
@@ -54,7 +56,7 @@ public class PlanHandler {
         log.info("create plan - IN cid={}", cid);
 
         return req.bodyToMono(PlanCreateRequest.class)
-                .flatMap(validation::validate)
+                .flatMap(r -> validation.validate(r, AppError.PLAN_INVALID_DATA)) // ← "18"
                 .flatMap(r -> createUC.execute(
                         r.code(), r.name(), r.validationMode(), r.description(),
                         resolveUser(req, r.updatedBy())
@@ -104,7 +106,7 @@ public class PlanHandler {
         log.info("update plan - IN cid={} code={}", cid, code);
 
         return req.bodyToMono(PlanUpdateRequest.class)
-                .flatMap(validation::validate)
+                .flatMap(r -> validation.validate(r, AppError.PLAN_INVALID_DATA)) // ← "18"
                 .flatMap(r -> updateUC.execute(code, r.name(), r.description(), r.validationMode(),
                         resolveUser(req, r.updatedBy())))
                 .map(this::toResp)
@@ -119,7 +121,7 @@ public class PlanHandler {
         log.info("change plan status - IN cid={}", cid);
 
         return req.bodyToMono(PlanStatusRequest.class)
-                .flatMap(validation::validate)
+                .flatMap(r -> validation.validate(r, AppError.PLAN_INVALID_DATA)) // ← "18"
                 .flatMap(r -> changeStatusUC.execute(r.planCode(), r.status(),
                         resolveUser(req, r.updatedBy())))
                 .map(this::toResp)
@@ -135,7 +137,7 @@ public class PlanHandler {
         log.info("add plan item(s) - IN cid={}", cid);
 
         return req.bodyToMono(PlanItemRequest.class)
-                .flatMap(validation::validate)
+                .flatMap(r -> validation.validate(r, AppError.PLAN_ITEM_INVALID_DATA)) // ← "21"
                 .flatMap(r -> {
                     var by = resolveUser(req, r.updatedBy());
 
@@ -143,10 +145,14 @@ public class PlanHandler {
                     boolean hasSingle = r.value() != null && !r.value().isBlank();
 
                     if (!hasBulk && !hasSingle) {
-                        return Mono.error(new IllegalArgumentException("Debe enviar 'value' (single) o 'values' (bulk)"));
+                        // Mapear el error local a AppException con código "21"
+                        return Mono.error(new AppException(
+                                AppError.PLAN_ITEM_INVALID_DATA,
+                                "Debe enviar 'value' (single) o 'values' (bulk)"
+                        ));
                     }
 
-                    // Preferimos BULK si llegó ambos por error del cliente
+                    // Preferimos BULK si llegaron ambos
                     if (hasBulk) {
                         return addItemUC.addMany(r.planCode(), r.values(), by)
                                 .map(this::toBulkDto)
@@ -155,7 +161,7 @@ public class PlanHandler {
                                         .bodyValue(ApiResponses.okEnvelope(req, "Carga masiva procesada", resp)));
                     }
 
-                    // SINGLE (compatible con la versión anterior)
+                    // SINGLE (compatibilidad)
                     return addItemUC.addValue(r.planCode(), r.value(), by)
                             .map(this::toItemResp)
                             .flatMap(resp -> {
@@ -190,7 +196,7 @@ public class PlanHandler {
         log.info("change item status - IN cid={}", cid);
 
         return req.bodyToMono(PlanItemStatus.class)
-                .flatMap(validation::validate)
+                .flatMap(r -> validation.validate(r, AppError.PLAN_ITEM_INVALID_DATA)) // ← "21"
                 .flatMap(r -> changeItemStatusUC.execute(
                         r.planCode(), r.value(), r.status(),
                         resolveUser(req, r.updatedBy())))
@@ -225,13 +231,12 @@ public class PlanHandler {
     }
 
 
-
     public Mono<ServerResponse> assignToSubtype(ServerRequest req) {
         String cid = req.headers().firstHeader(CorrelationWebFilter.CID);
         log.info("assign plan to subtype - IN cid={}", cid);
 
         return req.bodyToMono(AssignPlanRequest.class)
-                .flatMap(validation::validate)
+                .flatMap(r -> validation.validate(r, AppError.PLAN_ASSIGNMENT_INVALID_DATA)) // ← "23"
                 .flatMap(r -> assignUC.assign(r.subtypeCode(), r.planCode(),
                         resolveUser(req, r.updatedBy())))
                 .map(this::toLinkResp)
@@ -241,7 +246,6 @@ public class PlanHandler {
                     return ok(req, "Plan asignado al SUBTYPE", resp);
                 });
     }
-
 
 
     private PlanResponse toResp(CommercePlan p) {
