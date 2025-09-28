@@ -18,6 +18,11 @@ import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.ServerWebInputException;
 import reactor.core.publisher.Mono;
 
+import io.r2dbc.spi.R2dbcTimeoutException;
+import io.netty.handler.timeout.ReadTimeoutException;
+import io.netty.channel.ConnectTimeoutException;
+
+import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Map;
@@ -85,39 +90,78 @@ public class GlobalErrorHandler implements ErrorWebExceptionHandler {
         }
     }
 
+    // --- helpers ---
+
+    private boolean isTimeout(Throwable ex) {
+        return findCause(ex, TimeoutException.class) != null
+                || findCause(ex, R2dbcTimeoutException.class) != null
+                || findCause(ex, SocketTimeoutException.class) != null
+                || findCause(ex, ReadTimeoutException.class) != null
+                || findCause(ex, ConnectTimeoutException.class) != null;
+    }
+
+    private Throwable firstTimeoutCause(Throwable ex) {
+        Throwable t;
+        if ((t = findCause(ex, TimeoutException.class)) != null) return t;
+        if ((t = findCause(ex, R2dbcTimeoutException.class)) != null) return t;
+        if ((t = findCause(ex, SocketTimeoutException.class)) != null) return t;
+        if ((t = findCause(ex, ReadTimeoutException.class)) != null) return t;
+        if ((t = findCause(ex, ConnectTimeoutException.class)) != null) return t;
+        return ex;
+    }
+
+    private boolean messageContains(Throwable ex, String token) {
+        for (Throwable t = ex; t != null; t = t.getCause()) {
+            String m = t.getMessage();
+            if (m != null && m.contains(token)) return true;
+        }
+        return false;
+    }
+
+    // --- mapeo de status ---
+
     private HttpStatus resolveStatus(Throwable ex) {
+
         if (ex instanceof ResponseStatusException rse) {
             var sc = rse.getStatusCode();
             var status = HttpStatus.resolve(sc.value());
             return status != null ? status : HttpStatus.INTERNAL_SERVER_ERROR;
         }
-        // <-- marca también ServerWebInputException como 400
-        if (ex instanceof IllegalArgumentException
-                || ex instanceof ConstraintViolationException
-                || ex instanceof DecodingException
-                || ex instanceof ServerWebInputException) {
+
+        if (ex instanceof IllegalArgumentException || ex instanceof ConstraintViolationException || ex instanceof DecodingException) {
             return HttpStatus.BAD_REQUEST;
         }
+
         if (ex instanceof NotFoundException || ex instanceof NoSuchElementException) return HttpStatus.NOT_FOUND;
+
+        // Regla de dominio desde BD: no permitir inactivar la última agency activa
+        if (messageContains(ex, "ORA-20052")) return HttpStatus.CONFLICT;
+
         if (ex instanceof IllegalStateException) return HttpStatus.CONFLICT;
-        if (ex instanceof TimeoutException) return HttpStatus.GATEWAY_TIMEOUT;
+
+        // Timeouts (R2DBC/Netty/Reactor)
+        if (isTimeout(ex)) return HttpStatus.GATEWAY_TIMEOUT;
+
         return HttpStatus.INTERNAL_SERVER_ERROR;
     }
 
+    // --- detalle del problema ---
+
     private String buildDetail(Throwable ex, HttpStatus status) {
-        // 1) Des-encapsular primero errores de lectura/binding del cuerpo
+
+        // 1) Errores de lectura/binding del cuerpo
         if (ex instanceof ServerWebInputException || ex instanceof DecodingException) {
             Throwable cause = (ex instanceof ServerWebInputException) ? ex.getCause() : ex;
 
             var iae = findCause(cause, IllegalArgumentException.class);
-            if (iae != null && org.springframework.util.StringUtils.hasText(iae.getMessage())) {
-                return iae.getMessage(); // <- aquí saldrá tu mensaje del @JsonCreator
+            if (iae != null && StringUtils.hasText(iae.getMessage())) {
+                return iae.getMessage();
             }
 
             var vie = findCause(cause, ValueInstantiationException.class);
             if (vie != null) {
                 var inner = findCause(vie, IllegalArgumentException.class);
-                if (inner != null && org.springframework.util.StringUtils.hasText(inner.getMessage())) {
+                if (inner != null && StringUtils.hasText(inner.getMessage())) {
                     return inner.getMessage();
                 }
             }
@@ -135,19 +179,39 @@ public class GlobalErrorHandler implements ErrorWebExceptionHandler {
                 }
             }
 
-            // Fallback más claro que el default
             return "Cuerpo JSON inválido o con tipos incorrectos";
         }
 
         // 2) Para otras ResponseStatusException, respeta su reason
         if (ex instanceof ResponseStatusException rse
-                && org.springframework.util.StringUtils.hasText(rse.getReason())) {
+                && StringUtils.hasText(rse.getReason())) {
             return rse.getReason();
         }
 
-        // 3) Resto
+        // 3) Detalle específico para 504
+        if (status == HttpStatus.GATEWAY_TIMEOUT) {
+            Throwable root = firstTimeoutCause(ex);
+            String msg = (root.getMessage() != null) ? root.getMessage() : "";
+            if (msg.isBlank()) msg = "La operación excedió el tiempo de espera.";
+            if (msg.length() > 300) msg = msg.substring(0, 300) + "...";
+
+            if (msg.contains("Connection acquisition")) {
+                msg = "Tiempo de espera al adquirir conexión a la base de datos.";
+            } else if (msg.contains("Did not observe any item or terminal signal")) {
+                msg = "Tiempo de espera en operación reactiva (no hubo señal dentro del límite).";
+            }
+            return msg;
+        }
+
+        // 4) Mensaje claro para la validación de dominio desde BD (trigger)
+        if (messageContains(ex, "ORA-20052")) {
+            return "No puede inactivarse la única AGENCY activa del SUBTYPE. " +
+                    "Cree otra AGENCY activa o inhabilite el SUBTYPE.";
+        }
+
+        // 5) Resto
         String msg = ex.getMessage();
-        if (!org.springframework.util.StringUtils.hasText(msg)) {
+        if (!StringUtils.hasText(msg)) {
             return status.is5xxServerError() ? "Se produjo un error inesperado." : "Solicitud inválida.";
         }
         return status.is5xxServerError() ? "Se produjo un error inesperado." : msg;
@@ -168,7 +232,6 @@ public class GlobalErrorHandler implements ErrorWebExceptionHandler {
         public NotFoundException(String message) { super(message); }
     }
 
-
     private static <T extends Throwable> T findCause(Throwable ex, Class<T> type) {
         Throwable t = ex;
         while (t != null) {
@@ -177,6 +240,4 @@ public class GlobalErrorHandler implements ErrorWebExceptionHandler {
         }
         return null;
     }
-
-
 }
