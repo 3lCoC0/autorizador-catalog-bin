@@ -74,6 +74,21 @@ public class R2dbcAgencyRepository implements AgencyRepository {
     }
 
     @Override
+    public Mono<Boolean> existsAnotherActive(String subtypeCode, String excludeAgencyCode) {
+        return db.sql("""
+            SELECT 1 FROM AGENCY
+             WHERE SUBTYPE_CODE=:st AND STATUS='A' AND AGENCY_CODE<>:ag
+             FETCH FIRST 1 ROWS ONLY
+        """)
+                .bind("st", subtypeCode)
+                .bind("ag", excludeAgencyCode)
+                .map((r,m) -> 1)
+                .first()
+                .map(x -> true)
+                .defaultIfEmpty(false);
+    }
+
+    @Override
     public Mono<Agency> findByPk(String subtypeCode, String agencyCode) {
         long t0 = System.nanoTime();
         log.debug("Repo:AGENCY:findByPk:start st={} ag={}", subtypeCode, agencyCode);

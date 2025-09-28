@@ -9,4 +9,5 @@ public interface AgencyRepository {
     Mono<Agency> save(Agency aggregate); // upsert
     Mono<Agency> findByPk(String subtypeCode, String agencyCode);
     Flux<Agency> findAll(String subtypeCode, String status, String search, int page, int size);
+    Mono<Boolean> existsAnotherActive(String subtypeCode, String excludeAgencyCode);
 }
