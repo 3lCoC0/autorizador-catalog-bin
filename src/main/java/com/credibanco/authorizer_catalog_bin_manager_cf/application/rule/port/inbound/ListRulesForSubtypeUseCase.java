@@ -8,4 +8,8 @@ public interface ListRulesForSubtypeUseCase {
     default Flux<ValidationMap> execute(String subtypeCode, String bin) {
         return execute(subtypeCode, bin, "A", 0, 100);
     }
+
+    default Flux<ValidationMap> execute(String subtypeCode, String status, int page, int size) {
+        return execute(subtypeCode, null, status, page, size);
+    }
 }

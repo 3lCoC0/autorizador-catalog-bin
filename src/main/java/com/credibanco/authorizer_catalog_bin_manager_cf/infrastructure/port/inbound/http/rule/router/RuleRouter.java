@@ -28,8 +28,9 @@ public class RuleRouter {
 
                 .POST("/v1/rules/map", accept(MediaType.APPLICATION_JSON), h::attachRule)
 
-                .PUT ("/v1/subtypes/{subtypeCode}/bins/{binEfectivo}/rules/{code}/status", accept(MediaType.APPLICATION_JSON), h::changeRuleStatus)
-                .GET ("/v1/subtypes/{subtypeCode}/bins/{binEfectivo}/rules", accept(MediaType.APPLICATION_JSON), h::listRulesForSubtype)
+                .PUT ("/v1/subtypes/{subtypeCode}/bins/{bin}/rules/{code}/status", accept(MediaType.APPLICATION_JSON), h::changeRuleStatus)
+                .GET ("/v1/subtypes/{subtypeCode}/bins/{bin}/rules", accept(MediaType.APPLICATION_JSON), h::listRulesForSubtype)
+                .GET ("/v1/subtypes/{subtypeCode}/rules", accept(MediaType.APPLICATION_JSON), h::listRulesForSubtypeBySubtype)
                 .build();
     }
 }

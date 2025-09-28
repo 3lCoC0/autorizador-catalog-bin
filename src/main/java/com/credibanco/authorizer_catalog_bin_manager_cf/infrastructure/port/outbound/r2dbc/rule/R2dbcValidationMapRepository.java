@@ -192,16 +192,21 @@ public class R2dbcValidationMapRepository implements ValidationMapRepository {
                    m.UPDATED_BY
                 FROM SUBTYPE_VALIDATION_MAP m
                 JOIN SUBTYPE_VALIDATION v ON v.VALIDATION_ID = m.VALIDATION_ID
-                WHERE m.SUBTYPE_CODE=:sc AND m.BIN=:be
+                WHERE m.SUBTYPE_CODE=:sc
                 """);
+
+        if (bin != null) sb.append(" AND m.BIN=:be");
         if (status != null) sb.append(" AND m.STATUS=:mst");
-        sb.append(" ORDER BY m.SUBTYPE_CODE, m.BIN, m.VALIDATION_ID OFFSET :off ROWS FETCH NEXT :sz ROWS ONLY");
+
+        sb.append(" ORDER BY m.SUBTYPE_CODE, m.BIN, m.VALIDATION_ID");
+        sb.append(" OFFSET :off ROWS FETCH NEXT :sz ROWS ONLY");
 
         var spec = db.sql(sb.toString())
                 .bind("sc", subtypeCode)
-                .bind("be", bin)
                 .bind("off", p * s)
                 .bind("sz", s);
+
+        if (bin != null) spec = spec.bind("be", bin);
         if (status != null) spec = spec.bind("mst", status);
 
         return spec.map(MAP_MAPPER).all()

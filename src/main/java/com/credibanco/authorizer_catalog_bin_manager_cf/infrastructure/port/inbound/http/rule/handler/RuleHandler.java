@@ -14,6 +14,8 @@ import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
+
 import static com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.config.http.ApiResponses.*;
 
 @Slf4j
@@ -123,6 +125,7 @@ public class RuleHandler {
                         .bodyValue(okEnvelope(req, "Operación exitosa", body)));
     }
 
+
     public Mono<ServerResponse> listRulesForSubtype(ServerRequest req) {
         long t0 = System.nanoTime();
         var st  = req.pathVariable("subtypeCode");
@@ -133,10 +136,57 @@ public class RuleHandler {
 
         log.info("RULES:map:list:recv st={} eff={} status={} page={} size={}", st, eff, status, page, size);
 
-        var body = listRulesUC.execute(st, eff, status, page, size).map(this::toMapResp);
-        return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
-                .body(body, ValidationResponse.class)
-                .doOnTerminate(() -> log.info("RULES:map:list:done elapsedMs={}", ms(t0)));
+        return listRulesUC.execute(st, eff, status, page, size)
+                .map(this::toMapResp)
+                .collectList()
+                .flatMap(list -> {
+                    String detail = buildDetailForList(st, eff, status, list);
+                    return ServerResponse.ok()
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .bodyValue(okEnvelope(req, detail, list));
+                })
+                .doOnTerminate(() -> log.info("RULES:map:list:done elapsedMs={}", (System.nanoTime()-t0)/1_000_000));
+    }
+
+    public Mono<ServerResponse> listRulesForSubtypeBySubtype(ServerRequest req) {
+        long t0 = System.nanoTime();
+        var st  = req.pathVariable("subtypeCode");
+        var status = req.queryParam("status").orElse("A");
+        int page = req.queryParam("page").map(Integer::parseInt).orElse(0);
+        int size = req.queryParam("size").map(Integer::parseInt).orElse(100);
+
+        log.info("RULES:map:list:recv st={} status={} page={} size={}", st, status, page, size);
+
+        return listRulesUC.execute(st, status, page, size)
+                .map(this::toMapResp)
+                .collectList()
+                .flatMap(list -> {
+                    String detail = buildDetailForList(st, null, status, list);
+                    return ServerResponse.ok()
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .bodyValue(okEnvelope(req, detail, list));
+                })
+                .doOnTerminate(() -> log.info("RULES:map:list:done st={} elapsedMs={}", st, (System.nanoTime()-t0)/1_000_000));
+    }
+
+
+    private String buildDetailForList(String subtypeCode, String binEfectivoOrNull, String status, List<?> list) {
+        boolean empty = list == null || list.isEmpty();
+        boolean onlyActive = "A".equalsIgnoreCase(status);
+        if (empty && onlyActive) {
+            if (binEfectivoOrNull != null) {
+                return "El SUBTYPE " + subtypeCode + " con BIN " + binEfectivoOrNull + " no tiene reglas activas.";
+            }
+            return "El SUBTYPE " + subtypeCode + " no tiene reglas activas.";
+        }
+        if (empty) {
+            if (binEfectivoOrNull != null) {
+                return "El SUBTYPE " + subtypeCode + " con BIN " + binEfectivoOrNull + " no tiene reglas con el filtro aplicado (status=" + status + ").";
+            }
+            return "El SUBTYPE " + subtypeCode + " no tiene reglas con el filtro aplicado (status=" + status + ").";
+        }
+        // Cuando sí hay elementos, un detalle neutro
+        return "Operación exitosa";
     }
 
     private ValidationResponse toResp(Validation v) {
