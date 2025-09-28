@@ -22,5 +22,5 @@ public record AgencyCreateRequest(
         @Size(max=120) String pinCustodianSecondary,
         @Size(max=30)  String pinCustodianSecondaryId,
         @Size(max=400) String description,
-        @NotBlank String createdBy
+        String createdBy
 ) {}

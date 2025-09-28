@@ -9,23 +9,25 @@ import reactor.core.publisher.Mono;
 
 import java.util.NoSuchElementException;
 
-public record UpdateAgencyService(
-        AgencyRepository repo,
-        SubtypeReadOnlyRepository subtypeRepo,
-        TransactionalOperator tx
-) implements UpdateAgencyUseCase {
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+public record UpdateAgencyService(AgencyRepository repo,
+                                  SubtypeReadOnlyRepository subtypeRepo,
+                                  TransactionalOperator tx) implements UpdateAgencyUseCase {
+
+    private static long ms(long t0) { return (System.nanoTime()-t0)/1_000_000; }
 
     @Override
     public Mono<Agency> execute(Agency updated) {
-        // 1) Validar existencia de SUBTYPE
+        long t0 = System.nanoTime();
+        log.debug("UC:Agency:Update:start st={} ag={}", updated.subtypeCode(), updated.agencyCode());
         return subtypeRepo.existsByCode(updated.subtypeCode())
                 .flatMap(exists -> exists
                         ? repo.findByPk(updated.subtypeCode(), updated.agencyCode())
                         : Mono.error(new NoSuchElementException("SUBTYPE no encontrado"))
                 )
-                // 2) Validar existencia de AGENCY
                 .switchIfEmpty(Mono.error(new NoSuchElementException("AGENCY no encontrada")))
-                // 3) Fusionar manteniendo el status actual y timestamps por dominio
                 .flatMap(current -> {
                     Agency merged = current.updateBasics(
                             updated.name(),
@@ -48,6 +50,8 @@ public record UpdateAgencyService(
                     );
                     return repo.save(merged);
                 })
+                .doOnSuccess(a -> log.info("UC:Agency:Update:done st={} ag={} elapsedMs={}",
+                        a.subtypeCode(), a.agencyCode(), ms(t0)))
                 .as(tx::transactional);
     }
 }

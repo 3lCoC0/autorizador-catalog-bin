@@ -5,5 +5,5 @@ import jakarta.validation.constraints.Pattern;
 
 public record AgencyStatusRequest(
         @NotBlank @Pattern(regexp="A|I") String status,
-        @NotBlank String updatedBy
+        String updatedBy
 ) {}

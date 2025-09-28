@@ -7,14 +7,19 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.domain.agency.Agency;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Mono;
 
-public record CreateAgencyService(
-        AgencyRepository repo,
-        SubtypeReadOnlyRepository subtypeRepo,
-        TransactionalOperator tx
-) implements CreateAgencyUseCase {
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+public record CreateAgencyService(AgencyRepository repo,
+                                  SubtypeReadOnlyRepository subtypeRepo,
+                                  TransactionalOperator tx) implements CreateAgencyUseCase {
+
+    private static long ms(long t0) { return (System.nanoTime()-t0)/1_000_000; }
 
     @Override
     public Mono<Agency> execute(Agency draft) {
+        long t0 = System.nanoTime();
+        log.debug("UC:Agency:Create:start st={} ag={}", draft.subtypeCode(), draft.agencyCode());
         return subtypeRepo.existsByCode(draft.subtypeCode())
                 .flatMap(exists -> exists
                         ? repo.existsByPk(draft.subtypeCode(), draft.agencyCode())
@@ -23,6 +28,8 @@ public record CreateAgencyService(
                                 : repo.save(draft))
                         : Mono.error(new IllegalArgumentException("SUBTYPE inexistente"))
                 )
+                .doOnSuccess(a -> log.info("UC:Agency:Create:done st={} ag={} status={} elapsedMs={}",
+                        a.subtypeCode(), a.agencyCode(), a.status(), ms(t0)))
                 .as(tx::transactional);
     }
 }

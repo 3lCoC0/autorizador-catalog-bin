@@ -45,7 +45,7 @@ public record Agency(
                                    String cardCustodianSecondary, String cardCustodianSecondaryId,
                                    String pinCustodianPrimary, String pinCustodianPrimaryId,
                                    String pinCustodianSecondary, String pinCustodianSecondaryId,
-                                   String description, String createdBy) {
+                                   String description, String createdByNullable) {
         var now = OffsetDateTime.now();
         return new Agency(
                 subtypeCode, agencyCode, name,
@@ -55,7 +55,7 @@ public record Agency(
                 cardCustodianSecondary, cardCustodianSecondaryId,
                 pinCustodianPrimary, pinCustodianPrimaryId,
                 pinCustodianSecondary, pinCustodianSecondaryId,
-                description, "A", now, now, createdBy
+                description, "A", now, now, createdByNullable
         );
     }
 
@@ -86,7 +86,7 @@ public record Agency(
                                String cardCustodianSecondary, String cardCustodianSecondaryId,
                                String pinCustodianPrimary, String pinCustodianPrimaryId,
                                String pinCustodianSecondary, String pinCustodianSecondaryId,
-                               String description, String by) {
+                               String description, String byNullable) {
         require(name, "name");
         return new Agency(
                 subtypeCode, agencyCode, name,
@@ -96,11 +96,11 @@ public record Agency(
                 cardCustodianSecondary, cardCustodianSecondaryId,
                 pinCustodianPrimary, pinCustodianPrimaryId,
                 pinCustodianSecondary, pinCustodianSecondaryId,
-                description, status, createdAt, OffsetDateTime.now(), by
+                description, status, createdAt, OffsetDateTime.now(), byNullable
         );
     }
 
-    public Agency changeStatus(String newStatus, String by) {
+    public Agency changeStatus(String newStatus, String byNullable) {
         if (!Objects.equals(newStatus, "A") && !Objects.equals(newStatus, "I"))
             throw new IllegalArgumentException("status debe ser 'A' o 'I'");
         return new Agency(
@@ -111,7 +111,7 @@ public record Agency(
                 cardCustodianSecondary, cardCustodianSecondaryId,
                 pinCustodianPrimary, pinCustodianPrimaryId,
                 pinCustodianSecondary, pinCustodianSecondaryId,
-                description, newStatus, createdAt, OffsetDateTime.now(), by
+                description, newStatus, createdAt, OffsetDateTime.now(), byNullable
         );
     }
 

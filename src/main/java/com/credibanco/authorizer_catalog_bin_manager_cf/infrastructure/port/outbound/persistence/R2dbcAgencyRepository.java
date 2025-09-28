@@ -4,6 +4,7 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.application.agency.port.
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.agency.Agency;
 import io.r2dbc.spi.Row;
 import io.r2dbc.spi.RowMetadata;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.r2dbc.core.DatabaseClient;
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Flux;
@@ -13,7 +14,7 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.function.BiFunction;
-
+@Slf4j
 @Repository
 public class R2dbcAgencyRepository implements AgencyRepository {
 
@@ -21,6 +22,7 @@ public class R2dbcAgencyRepository implements AgencyRepository {
     private final DatabaseClient db;
 
     public R2dbcAgencyRepository(DatabaseClient db) { this.db = db; }
+    private static long ms(long t0) { return (System.nanoTime()-t0)/1_000_000; }
 
     private static OffsetDateTime toOffset(Row row, String col) {
         LocalDateTime ldt = row.get(col, LocalDateTime.class);
@@ -56,6 +58,8 @@ public class R2dbcAgencyRepository implements AgencyRepository {
 
     @Override
     public Mono<Boolean> existsByPk(String subtypeCode, String agencyCode) {
+        long t0 = System.nanoTime();
+        log.debug("Repo:AGENCY:existsByPk:start st={} ag={}", subtypeCode, agencyCode);
         return db.sql("""
                 SELECT 1 FROM AGENCY
                  WHERE SUBTYPE_CODE=:st AND AGENCY_CODE=:ag
@@ -63,14 +67,16 @@ public class R2dbcAgencyRepository implements AgencyRepository {
                 """)
                 .bind("st", subtypeCode)
                 .bind("ag", agencyCode)
-                .map((r,m) -> 1)
-                .first()
-                .map(x -> true)
-                .defaultIfEmpty(false);
+                .map((r,m) -> 1).first().map(x -> true).defaultIfEmpty(false)
+                .doOnSuccess(exists -> log.debug("Repo:AGENCY:existsByPk:done st={} ag={} exists={} elapsedMs={}",
+                        subtypeCode, agencyCode, exists, ms(t0)))
+                .doOnError(e -> log.warn("Repo:AGENCY:existsByPk:error st={} ag={}", subtypeCode, agencyCode, e));
     }
 
     @Override
     public Mono<Agency> findByPk(String subtypeCode, String agencyCode) {
+        long t0 = System.nanoTime();
+        log.debug("Repo:AGENCY:findByPk:start st={} ag={}", subtypeCode, agencyCode);
         return db.sql("""
                 SELECT SUBTYPE_CODE, AGENCY_CODE, NAME, AGENCY_NIT, ADDRESS, PHONE,
                        MUNICIPALITY_DANE_CODE, EMBOSSER_HIGHLIGHT, EMBOSSER_PINS,
@@ -82,17 +88,22 @@ public class R2dbcAgencyRepository implements AgencyRepository {
                   FROM AGENCY
                  WHERE SUBTYPE_CODE=:st AND AGENCY_CODE=:ag
                 """)
-                .bind("st", subtypeCode)
-                .bind("ag", agencyCode)
-                .map(MAPPER)
-                .one();
+                .bind("st", subtypeCode).bind("ag", agencyCode)
+                .map(MAPPER).one()
+                .doOnSuccess(a -> log.debug("Repo:AGENCY:findByPk:hit st={} ag={} elapsedMs={}",
+                        subtypeCode, agencyCode, ms(t0)))
+                .doOnError(e -> log.warn("Repo:AGENCY:findByPk:error st={} ag={}", subtypeCode, agencyCode, e));
     }
 
     @Override
     public Flux<Agency> findAll(String subtypeCode, String status, String search, int page, int size) {
+        long t0 = System.nanoTime();
         int p = Math.max(0, page);
         int s = Math.max(1, size);
         int offset = p * s;
+
+        log.info("Repo:AGENCY:findAll:start st={} status={} page={} size={} offset={}",
+                subtypeCode, status, p, s, offset);
 
         StringBuilder sql = new StringBuilder("""
                 SELECT SUBTYPE_CODE, AGENCY_CODE, NAME, AGENCY_NIT, ADDRESS, PHONE,
@@ -114,14 +125,18 @@ public class R2dbcAgencyRepository implements AgencyRepository {
         if (status != null)      spec = spec.bind("status", status);
         if (search != null)      spec = spec.bind("q", search);
 
-        return spec.bind("offset", offset)
-                .bind("size", s)
-                .map(MAPPER)
-                .all();
+        return spec.bind("offset", offset).bind("size", s).map(MAPPER).all()
+                .doOnComplete(() -> log.info("Repo:AGENCY:findAll:done st={} status={} page={} size={} elapsedMs={}",
+                        subtypeCode, status, p, s, ms(t0)))
+                .doOnError(e -> log.warn("Repo:AGENCY:findAll:error st={} status={} page={} size={}",
+                        subtypeCode, status, p, s, e));
     }
 
     @Override
     public Mono<Agency> save(Agency a) {
+        long t0 = System.nanoTime();
+        log.debug("Repo:AGENCY:save:start st={} ag={}", a.subtypeCode(), a.agencyCode());
+
         var spec = db.sql("""
             MERGE INTO AGENCY t
             USING (SELECT :st SUBTYPE_CODE, :ag AGENCY_CODE FROM DUAL) s
@@ -162,26 +177,33 @@ public class R2dbcAgencyRepository implements AgencyRepository {
                 .bind("st", a.subtypeCode())
                 .bind("ag", a.agencyCode())
                 .bind("name", a.name())
-                .bind("status", a.status())
-                .bind("by", a.updatedBy());
+                .bind("status", a.status());
 
-        spec = bindOrNull(spec, "nit", a.agencyNit());
-        spec = bindOrNull(spec, "addr", a.address());
+        spec = bindOrNull(spec, "nit",   a.agencyNit());
+        spec = bindOrNull(spec, "addr",  a.address());
         spec = bindOrNull(spec, "phone", a.phone());
-        spec = bindOrNull(spec, "dane", a.municipalityDaneCode());
-        spec = bindOrNull(spec, "eh", a.embosserHighlight());
-        spec = bindOrNull(spec, "ep", a.embosserPins());
-        spec = bindOrNull(spec, "ccp", a.cardCustodianPrimary());
+        spec = bindOrNull(spec, "dane",  a.municipalityDaneCode());
+        spec = bindOrNull(spec, "eh",    a.embosserHighlight());
+        spec = bindOrNull(spec, "ep",    a.embosserPins());
+        spec = bindOrNull(spec, "ccp",   a.cardCustodianPrimary());
         spec = bindOrNull(spec, "ccpid", a.cardCustodianPrimaryId());
-        spec = bindOrNull(spec, "ccs", a.cardCustodianSecondary());
+        spec = bindOrNull(spec, "ccs",   a.cardCustodianSecondary());
         spec = bindOrNull(spec, "ccsid", a.cardCustodianSecondaryId());
-        spec = bindOrNull(spec, "pcp", a.pinCustodianPrimary());
+        spec = bindOrNull(spec, "pcp",   a.pinCustodianPrimary());
         spec = bindOrNull(spec, "pcpid", a.pinCustodianPrimaryId());
-        spec = bindOrNull(spec, "pcs", a.pinCustodianSecondary());
+        spec = bindOrNull(spec, "pcs",   a.pinCustodianSecondary());
         spec = bindOrNull(spec, "pcsid", a.pinCustodianSecondaryId());
         spec = bindOrNull(spec, "descr", a.description());
+        // ← clave: if null, bindNull
+        spec = (a.updatedBy() != null) ? spec.bind("by", a.updatedBy())
+                : spec.bindNull("by", String.class);
 
-        return spec.fetch().rowsUpdated().then(findByPk(a.subtypeCode(), a.agencyCode()));
+        return spec.fetch().rowsUpdated()
+                .doOnNext(n -> log.debug("Repo:AGENCY:save:merge rowsUpdated={} st={} ag={}", n, a.subtypeCode(), a.agencyCode()))
+                .then(findByPk(a.subtypeCode(), a.agencyCode()))
+                .doOnSuccess(x -> log.info("Repo:AGENCY:save:done st={} ag={} elapsedMs={}",
+                        x.subtypeCode(), x.agencyCode(), ms(t0)))
+                .doOnError(e -> log.warn("Repo:AGENCY:save:error st={} ag={}", a.subtypeCode(), a.agencyCode(), e));
     }
 
     private DatabaseClient.GenericExecuteSpec bindOrNull(DatabaseClient.GenericExecuteSpec spec, String name, String value) {

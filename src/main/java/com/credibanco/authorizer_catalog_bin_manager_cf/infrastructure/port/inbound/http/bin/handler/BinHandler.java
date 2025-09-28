@@ -24,7 +24,7 @@ public class BinHandler {
     private final GetBinUseCase getUC;
     private final ChangeBinStatusUseCase changeStatusUC;
 
-    // -------- Helpers --------
+
     private static long elapsedMs(long t0) { return (System.nanoTime() - t0) / 1_000_000; }
 
     private static Mono<Void> checkExtConstraints(String bin, String usesExt, Integer extDigits) {
