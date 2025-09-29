@@ -18,7 +18,7 @@ public record CreatePlanService(CommercePlanRepository repo, TransactionalOperat
         log.info("CreatePlanService IN code={} name={} mode={} by={}", code, name, mode, by);
         return repo.existsByCode(code)
                 .flatMap(exists -> exists
-                        ? Mono.<CommercePlan>error(new AppException(AppError.PLAN_ALREADY_EXISTS, "code=" + code))
+                        ? Mono.<CommercePlan>error(new AppException(AppError.PLAN_ALREADY_EXISTS))
                         : Mono.fromCallable(() -> CommercePlan.createNew(code, name, mode, description, by))
                         .onErrorMap(IllegalArgumentException.class,
                                 e -> new AppException(AppError.PLAN_INVALID_DATA, e.getMessage()))

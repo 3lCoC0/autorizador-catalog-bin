@@ -24,7 +24,7 @@ public record ChangePlanItemStatusService(CommercePlanRepository planRepo,
         }
         return planRepo.findByCode(planCode)
                 .switchIfEmpty(Mono.<com.credibanco.authorizer_catalog_bin_manager_cf.domain.plan.CommercePlan>error(
-                        new AppException(AppError.PLAN_NOT_FOUND, "code=" + planCode)))
+                        new AppException(AppError.PLAN_NOT_FOUND)))
                 .flatMap(p -> itemRepo.changeStatus(p.planId(), value, status, updatedBy))
                 .switchIfEmpty(Mono.<PlanItem>error(new AppException(AppError.PLAN_ITEM_NOT_FOUND,
                         "value=" + value + " en plan " + planCode)))

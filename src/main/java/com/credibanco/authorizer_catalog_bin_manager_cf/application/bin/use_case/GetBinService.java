@@ -21,7 +21,7 @@ public class GetBinService implements GetBinUseCase {
         log.debug("UC:GetBin:start bin={}", bin);
 
         return repo.findById(bin)
-                .switchIfEmpty(Mono.error(new AppException(AppError.BIN_NOT_FOUND, "bin=" + bin)))
+                .switchIfEmpty(Mono.error(new AppException(AppError.BIN_NOT_FOUND)))
                 .doOnSuccess(b -> log.info("UC:GetBin:done bin={}, status={}, elapsedMs={}",
                         b.bin(), b.status(), ms(t0)));
     }

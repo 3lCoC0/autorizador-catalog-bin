@@ -27,7 +27,7 @@ public record ListAgenciesService(AgencyRepository repo,
                 : subtypeRepo.existsByCode(subtypeCode)
                 .flatMapMany(exists -> exists
                         ? repo.findAll(subtypeCode, status, search, page, size)
-                        : Flux.error(new AppException(AppError.SUBTYPE_NOT_FOUND, "subtypeCode=" + subtypeCode)));
+                        : Flux.error(new AppException(AppError.SUBTYPE_NOT_FOUND)));
 
         return flux.doOnComplete(() -> log.info("UC:Agency:List:done st={} status={} page={} size={} elapsedMs={}",
                 subtypeCode, status, page, size, (System.nanoTime()-t0)/1_000_000));

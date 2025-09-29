@@ -21,7 +21,7 @@ public record CreateValidationService(ValidationRepository repo, TransactionalOp
         long t0 = System.nanoTime();
         return repo.existsByCode(code)
                 .flatMap(exists -> exists
-                        ? Mono.error(new AppException(AppError.RULES_VALIDATION_ALREADY_EXISTS, "code=" + code))
+                        ? Mono.error(new AppException(AppError.RULES_VALIDATION_ALREADY_EXISTS))
                         : Mono.fromCallable(() -> Validation.createNew(code, description, type, createdByNullable))
                         .onErrorMap(IllegalArgumentException.class,
                                 e -> new AppException(AppError.RULES_VALIDATION_INVALID_DATA, e.getMessage()))

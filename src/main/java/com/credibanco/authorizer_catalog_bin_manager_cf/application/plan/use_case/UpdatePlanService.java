@@ -18,7 +18,7 @@ public record UpdatePlanService(CommercePlanRepository repo) implements UpdatePl
         log.info("UpdatePlanService IN code={} newName={} mode={} by={}", planCode, planName, validationMode, updatedBy);
 
         return repo.findByCode(planCode)
-                .switchIfEmpty(Mono.<CommercePlan>error(new AppException(AppError.PLAN_NOT_FOUND, "code=" + planCode)))
+                .switchIfEmpty(Mono.<CommercePlan>error(new AppException(AppError.PLAN_NOT_FOUND)))
                 .map(p -> {
                     try {
                         String newMode = validationMode == null ? null : validationMode.trim().toUpperCase();

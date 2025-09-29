@@ -25,7 +25,7 @@ public record UpdateAgencyService(AgencyRepository repo,
         return subtypeRepo.existsByCode(updated.subtypeCode())
                 .flatMap(exists -> exists
                         ? repo.findByPk(updated.subtypeCode(), updated.agencyCode())
-                        : Mono.error(new AppException(AppError.SUBTYPE_NOT_FOUND, "subtypeCode=" + updated.subtypeCode()))
+                        : Mono.error(new AppException(AppError.SUBTYPE_NOT_FOUND))
                 )
                 .switchIfEmpty(Mono.error(new AppException(AppError.AGENCY_NOT_FOUND,
                         "subtypeCode=" + updated.subtypeCode() + ", agencyCode=" + updated.agencyCode())))

@@ -22,7 +22,7 @@ public record ChangeValidationStatusService(ValidationRepository repo, Transacti
             return Mono.error(new AppException(AppError.RULES_VALIDATION_INVALID_DATA, "status debe ser 'A' o 'I'"));
         }
         return repo.findByCode(code)
-                .switchIfEmpty(Mono.error(new AppException(AppError.RULES_VALIDATION_NOT_FOUND, "code=" + code)))
+                .switchIfEmpty(Mono.error(new AppException(AppError.RULES_VALIDATION_NOT_FOUND)))
                 .map(cur -> {
                     try { return cur.changeStatus(newStatus, byNullable); }
                     catch (IllegalArgumentException iae) {

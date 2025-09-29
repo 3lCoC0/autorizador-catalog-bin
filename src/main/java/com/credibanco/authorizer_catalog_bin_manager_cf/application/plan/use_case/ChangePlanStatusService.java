@@ -17,7 +17,7 @@ public record ChangePlanStatusService(CommercePlanRepository repo) implements Ch
             return Mono.<CommercePlan>error(new AppException(AppError.PLAN_INVALID_DATA, "status inválido (A|I)"));
         }
         return repo.findByCode(planCode)
-                .switchIfEmpty(Mono.<CommercePlan>error(new AppException(AppError.PLAN_NOT_FOUND, "code=" + planCode)))
+                .switchIfEmpty(Mono.<CommercePlan>error(new AppException(AppError.PLAN_NOT_FOUND)))
                 .map(p -> {
                     try { return p.changeStatus(status, updatedBy); }
                     catch (IllegalArgumentException iae) {

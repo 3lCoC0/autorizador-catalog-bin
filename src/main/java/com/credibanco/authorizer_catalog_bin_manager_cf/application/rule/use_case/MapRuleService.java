@@ -31,13 +31,13 @@ public record MapRuleService(
         Mono<Void> ensureSubtype = subtypes.existsByCode(subtypeCode)
                 .flatMap(ok -> ok
                         ? Mono.empty()
-                        : Mono.<Void>error(new AppException(AppError.SUBTYPE_NOT_FOUND, "subtypeCode=" + subtypeCode)));
+                        : Mono.<Void>error(new AppException(AppError.SUBTYPE_NOT_FOUND)));
 
         Mono<Void> ensurePair = subtypes.existsByCodeAndBinEfectivo(subtypeCode, bin)
                 .flatMap(ok -> ok
                         ? Mono.empty()
-                        : Mono.<Void>error(new AppException(AppError.BIN_NOT_FOUND,
-                        "BIN efectivo " + bin + " no existe para SUBTYPE " + subtypeCode)));
+                        : Mono.<Void>error(new AppException(AppError.BIN_NOT_FOUND
+                        )));
 
         var now = OffsetDateTime.now();
 

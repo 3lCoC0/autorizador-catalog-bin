@@ -14,7 +14,7 @@ public record GetValidationService(ValidationRepository repo) implements GetVali
     public Mono<Validation> execute(String code) {
         long t0 = System.nanoTime();
         return repo.findByCode(code)
-                .switchIfEmpty(Mono.error(new AppException(AppError.RULES_VALIDATION_NOT_FOUND, "code=" + code)))
+                .switchIfEmpty(Mono.error(new AppException(AppError.RULES_VALIDATION_NOT_FOUND)))
                 .doOnSuccess(v -> log.info("UC:Validation:Get:done code={} elapsedMs={}", v.code(),
                         (System.nanoTime()-t0)/1_000_000));
     }

@@ -16,7 +16,7 @@ public record UpdateValidationService(ValidationRepository repo) implements Upda
     public Mono<Validation> execute(String code, String description, String byNullable) {
         long t0 = System.nanoTime();
         return repo.findByCode(code)
-                .switchIfEmpty(Mono.error(new AppException(AppError.RULES_VALIDATION_NOT_FOUND, "code=" + code)))
+                .switchIfEmpty(Mono.error(new AppException(AppError.RULES_VALIDATION_NOT_FOUND)))
                 .map(cur -> {
                     try { return cur.updateBasics(description, byNullable); }
                     catch (IllegalArgumentException iae) {

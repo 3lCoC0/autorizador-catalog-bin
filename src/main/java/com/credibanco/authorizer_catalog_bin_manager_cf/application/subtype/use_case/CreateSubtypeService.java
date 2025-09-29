@@ -28,7 +28,7 @@ public record CreateSubtypeService(
         log.debug("UC:Subtype:Create:start bin={} code={} ownerIdType={} usesBy={}", bin, subtypeCode, ownerIdType, createdBy);
 
         Mono<BinReadOnlyRepository.BinExtConfig> cfgMono = binRepo.getExtConfig(bin)
-                .switchIfEmpty(Mono.error(new AppException(AppError.BIN_NOT_FOUND, "bin=" + bin)));
+                .switchIfEmpty(Mono.error(new AppException(AppError.BIN_NOT_FOUND)));
 
         Mono<Boolean> fkIdTypeOk = (ownerIdType == null || ownerIdType.isBlank())
                 ? Mono.just(true) : idTypeRepo.existsById(ownerIdType);

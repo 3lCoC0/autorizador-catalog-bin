@@ -28,7 +28,6 @@ public record CreateBinService(BinRepository repo, TransactionalOperator tx)
                                 "BIN inválido (debe tener 6 a 9 dígitos)"));
                     }
 
-                    // Construir agregado (puede lanzar IAE por invariantes => mapear)
                     return Mono.fromCallable(() ->
                                     Bin.createNew(bin, name, typeBin, typeAccount,
                                             compensationCod, description,
@@ -38,7 +37,7 @@ public record CreateBinService(BinRepository repo, TransactionalOperator tx)
                 })
                 .flatMap(aggregate -> repo.existsById(bin)
                         .flatMap(exists -> exists
-                                ? Mono.error(new AppException(AppError.BIN_ALREADY_EXISTS, "bin=" + bin))
+                                ? Mono.error(new AppException(AppError.BIN_ALREADY_EXISTS))
                                 : repo.save(aggregate)))
                 .doOnSuccess(b -> log.info("UC:CreateBin:done bin={}, elapsedMs={}",
                         b.bin(), (System.nanoTime() - t0) / 1_000_000))

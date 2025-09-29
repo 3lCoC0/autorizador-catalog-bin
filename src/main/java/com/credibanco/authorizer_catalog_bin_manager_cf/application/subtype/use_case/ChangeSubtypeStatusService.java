@@ -29,7 +29,7 @@ public record ChangeSubtypeStatusService(
         }
 
         return repo.findByPk(bin, subtypeCode)
-                .switchIfEmpty(Mono.error(new AppException(AppError.SUBTYPE_NOT_FOUND, "bin=" + bin + ", code=" + subtypeCode)))
+                .switchIfEmpty(Mono.error(new AppException(AppError.SUBTYPE_NOT_FOUND)))
                 .flatMap(s -> {
                     if ("A".equals(newStatus)) {
                         return agencyRepo.countActiveBySubtypeCode(s.subtypeCode())

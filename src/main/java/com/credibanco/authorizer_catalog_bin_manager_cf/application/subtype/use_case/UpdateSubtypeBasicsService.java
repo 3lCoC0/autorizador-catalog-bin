@@ -30,10 +30,10 @@ public record UpdateSubtypeBasicsService(
                 bin, subtypeCode, ownerIdType, newBinExt != null);
 
         return repo.findByPk(bin, subtypeCode)
-                .switchIfEmpty(Mono.error(new AppException(AppError.SUBTYPE_NOT_FOUND, "bin=" + bin + ", code=" + subtypeCode)))
+                .switchIfEmpty(Mono.error(new AppException(AppError.SUBTYPE_NOT_FOUND)))
                 .flatMap(current ->
                         binRepo.getExtConfig(current.bin())
-                                .switchIfEmpty(Mono.error(new AppException(AppError.BIN_NOT_FOUND, "bin=" + current.bin())))
+                                .switchIfEmpty(Mono.error(new AppException(AppError.BIN_NOT_FOUND)))
                                 .flatMap(cfg -> {
                                     String normExt;
                                     try {

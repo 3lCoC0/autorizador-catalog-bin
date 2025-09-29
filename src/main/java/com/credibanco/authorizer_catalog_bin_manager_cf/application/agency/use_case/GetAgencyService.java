@@ -20,9 +20,8 @@ public record GetAgencyService(AgencyRepository repo,
         return subtypeRepo.existsByCode(subtypeCode)
                 .flatMap(exists -> exists
                         ? repo.findByPk(subtypeCode, agencyCode)
-                        : Mono.error(new AppException(AppError.SUBTYPE_NOT_FOUND, "subtypeCode=" + subtypeCode)))
-                .switchIfEmpty(Mono.error(new AppException(AppError.AGENCY_NOT_FOUND,
-                        "subtypeCode=" + subtypeCode + ", agencyCode=" + agencyCode)))
+                        : Mono.error(new AppException(AppError.SUBTYPE_NOT_FOUND)))
+                .switchIfEmpty(Mono.error(new AppException(AppError.AGENCY_NOT_FOUND)))
                 .doOnSuccess(a -> log.info("UC:Agency:Get:done st={} ag={} status={} elapsedMs={}",
                         a.subtypeCode(), a.agencyCode(), a.status(), (System.nanoTime()-t0)/1_000_000));
     }

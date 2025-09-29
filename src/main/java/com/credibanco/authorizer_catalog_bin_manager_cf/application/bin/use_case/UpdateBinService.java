@@ -25,7 +25,7 @@ public record UpdateBinService(BinRepository repo, TransactionalOperator tx)
         log.debug("UC:UpdateBin:start bin={}, usesExt={}, extDigits={}", bin, usesBinExt, binExtDigits);
 
         return repo.findById(bin)
-                .switchIfEmpty(Mono.error(new AppException(AppError.BIN_NOT_FOUND, "bin=" + bin)))
+                .switchIfEmpty(Mono.error(new AppException(AppError.BIN_NOT_FOUND)))
                 .flatMap(current ->
                         Mono.defer(() -> Mono.just(
                                         current.updateBasics(name, typeBin, typeAccount,

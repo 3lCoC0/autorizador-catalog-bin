@@ -14,8 +14,7 @@ public record GetSubtypeService(SubtypeRepository repo) implements GetSubtypeUse
     public Mono<Subtype> execute(String bin, String subtypeCode) {
         long t0 = System.nanoTime();
         return repo.findByPk(bin, subtypeCode)
-                .switchIfEmpty(Mono.error(new AppException(AppError.SUBTYPE_NOT_FOUND,
-                        "bin=" + bin + ", code=" + subtypeCode)))
+                .switchIfEmpty(Mono.error(new AppException(AppError.SUBTYPE_NOT_FOUND)))
                 .doOnSuccess(s -> {
                     long elapsed = (System.nanoTime() - t0) / 1_000_000;
                     log.info("UC:Subtype:Get:done bin={} code={} status={} elapsedMs={}",

@@ -14,7 +14,7 @@ public record GetPlanService(CommercePlanRepository repo) implements GetPlanUseC
     public Mono<CommercePlan> execute(String planCode) {
         log.info("GetPlanService IN code={}", planCode);
         return repo.findByCode(planCode)
-                .switchIfEmpty(Mono.<CommercePlan>error(new AppException(AppError.PLAN_NOT_FOUND, "code=" + planCode)))
+                .switchIfEmpty(Mono.<CommercePlan>error(new AppException(AppError.PLAN_NOT_FOUND)))
                 .doOnSuccess(p -> log.info("GetPlanService OK code={} id={}", p.code(), p.planId()));
     }
 }

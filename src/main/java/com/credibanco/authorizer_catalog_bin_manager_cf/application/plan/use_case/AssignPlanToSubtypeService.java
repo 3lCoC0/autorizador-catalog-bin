@@ -26,12 +26,12 @@ public record AssignPlanToSubtypeService(CommercePlanRepository planRepo,
 
         Mono<Void> ensureSubtype = subtypeRepo.existsByCode(subtypeCode)
                 .flatMap(exists -> exists ? Mono.empty()
-                        : Mono.<Void>error(new AppException(AppError.SUBTYPE_NOT_FOUND, "subtypeCode=" + subtypeCode)));
+                        : Mono.<Void>error(new AppException(AppError.SUBTYPE_NOT_FOUND)));
 
         return ensureSubtype
                 .then(planRepo.findByCode(planCode)
                         .switchIfEmpty(Mono.<com.credibanco.authorizer_catalog_bin_manager_cf.domain.plan.CommercePlan>error(
-                                new AppException(AppError.PLAN_NOT_FOUND, "code=" + planCode))))
+                                new AppException(AppError.PLAN_NOT_FOUND))))
                 // Regla: el plan debe tener al menos 1 ítem ACTIVO
                 .flatMap(plan -> itemRepo.existsActiveByPlanId(plan.planId())
                         .flatMap(hasActive -> hasActive

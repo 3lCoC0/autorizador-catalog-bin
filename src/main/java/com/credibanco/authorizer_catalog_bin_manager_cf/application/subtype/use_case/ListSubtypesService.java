@@ -27,7 +27,7 @@ public record ListSubtypesService(
         Flux<Subtype> flux = (bin != null && !bin.isBlank())
                 ? binRepo.existsById(bin).flatMapMany(exists -> exists
                 ? repo.findAll(bin, code, status, page, size)
-                : Flux.error(new AppException(AppError.BIN_NOT_FOUND, "bin=" + bin)))
+                : Flux.error(new AppException(AppError.BIN_NOT_FOUND)))
                 : repo.findAll(null, code, status, page, size);
 
         return flux.doOnComplete(() -> {
