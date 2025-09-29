@@ -4,16 +4,17 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.application.rule.port.in
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.rule.port.outbound.SubtypeReadOnlyRepository;
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.rule.port.outbound.ValidationMapRepository;
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.rule.port.outbound.ValidationRepository;
-import com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule.ValidationMap;
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule.ValidationDataType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule.ValidationMap;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppError;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Mono;
 
 import java.time.OffsetDateTime;
-import java.util.NoSuchElementException;
 
+@Slf4j
 public record MapRuleService(
         ValidationRepository validations,
         ValidationMapRepository maps,
@@ -21,81 +22,117 @@ public record MapRuleService(
         TransactionalOperator tx
 ) implements MapRuleUseCase {
 
-    private static final Logger log = LoggerFactory.getLogger(MapRuleService.class);
-
     @Override
     public Mono<ValidationMap> attach(String subtypeCode, String bin, String validationCode, Object value, String by) {
-        if (value == null) return Mono.error(new IllegalArgumentException("value es requerido"));
+        if (value == null) {
+            return Mono.<ValidationMap>error(new AppException(AppError.RULES_MAP_INVALID_DATA, "value es requerido"));
+        }
 
-        var ensureSubtype = subtypes.existsByCode(subtypeCode)
-                .flatMap(ok -> ok ? Mono.empty()
-                        : Mono.error(new NoSuchElementException("SUBTYPE_CODE '%s' no existe".formatted(subtypeCode))));
+        Mono<Void> ensureSubtype = subtypes.existsByCode(subtypeCode)
+                .flatMap(ok -> ok
+                        ? Mono.empty()
+                        : Mono.<Void>error(new AppException(AppError.SUBTYPE_NOT_FOUND, "subtypeCode=" + subtypeCode)));
 
-        // Usa el que tengas disponible en tu repo:
-        var ensurePair = subtypes.existsByCodeAndBinEfectivo(subtypeCode, bin) // <- si renombraste a "bin"
-                // var ensurePair = subtypes.existsByCodeAndBinEfectivo(subtypeCode, bin) // <- si aún tienes este
-                .flatMap(ok -> ok ? Mono.empty()
-                        : Mono.error(new NoSuchElementException(
-                        "BIN '%s' no existe para SUBTYPE_CODE '%s'".formatted(bin, subtypeCode))));
+        Mono<Void> ensurePair = subtypes.existsByCodeAndBinEfectivo(subtypeCode, bin)
+                .flatMap(ok -> ok
+                        ? Mono.empty()
+                        : Mono.<Void>error(new AppException(AppError.BIN_NOT_FOUND,
+                        "BIN efectivo " + bin + " no existe para SUBTYPE " + subtypeCode)));
 
         var now = OffsetDateTime.now();
 
         return ensureSubtype.then(ensurePair)
                 .then(validations.findByCode(validationCode)
-                        .switchIfEmpty(Mono.error(new NoSuchElementException(
-                                "VALIDATION '%s' no existe".formatted(validationCode)))))
+                        .switchIfEmpty(Mono.<com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule.Validation>error(
+                                new AppException(AppError.RULES_VALIDATION_NOT_FOUND, "code=" + validationCode))))
                 .flatMap(v -> {
                     boolean vigente = "A".equals(v.status())
                             && (v.validFrom() == null || !v.validFrom().isAfter(now))
-                            && (v.validTo()   == null || !v.validTo().isBefore(now));
+                            && (v.validTo() == null || !v.validTo().isBefore(now));
+
                     if (!vigente) {
-                        return Mono.error(new NoSuchElementException(
-                                "VALIDATION '%s' no está activa/vigente".formatted(validationCode)));
+                        return Mono.<ValidationMap>error(new AppException(
+                                AppError.RULES_MAP_INVALID_DATA, "VALIDATION no activa o fuera de vigencia"));
                     }
 
-                    String vf = null;  // SI | NO (solo BOOL)
-                    Double vn = null;  // solo NUMBER
-                    String vt = null;  // solo TEXT
-
-                    if (v.dataType() == ValidationDataType.BOOL) {
-                        vf = coerceBool(value);
-                        if (vf == null)
-                            return Mono.error(new IllegalArgumentException(
-                                    "value debe ser booleano (true/false/1/0) o 'SI'/'NO' para dataType=BOOL"));
-                    } else if (v.dataType() == ValidationDataType.NUMBER) {
-                        vn = coerceNumber(value);
-                        if (vn == null)
-                            return Mono.error(new IllegalArgumentException(
-                                    "value debe ser numérico para dataType=NUMBER"));
-                    } else if (v.dataType() == ValidationDataType.TEXT) {
-                        vt = coerceText(value);
-                        if (vt == null || vt.isBlank())
-                            return Mono.error(new IllegalArgumentException(
-                                    "value debe ser texto para dataType=TEXT"));
-                    } else {
-                        return Mono.error(new IllegalArgumentException("dataType no soportado: " + v.dataType()));
+                    final Coerced coerced;
+                    try {
+                        coerced = coerceValue(v.dataType(), value);
+                    } catch (IllegalArgumentException iae) {
+                        return Mono.<ValidationMap>error(new AppException(AppError.RULES_MAP_INVALID_DATA, iae.getMessage()));
                     }
 
-                    var map = ValidationMap.createNew(subtypeCode, bin, v.validationId(), vf, vn, vt, by);
-                    return tx.execute(st -> maps.save(map)).next();
+                    // evitar duplicado exacto (NK: subtypeCode, bin, validationId)
+                    return maps.findByNaturalKey(subtypeCode, bin, v.validationId())
+                            .flatMap(existing -> Mono.<ValidationMap>error(new AppException(
+                                    AppError.RULES_MAP_ALREADY_EXISTS,
+                                    "Ya existe mapping para code=" + validationCode + " en subtype="
+                                            + subtypeCode + ", bin=" + bin)))
+                            .switchIfEmpty(Mono.defer(() ->
+                                    tx.execute(st -> maps.save(
+                                                    ValidationMap.createNew(
+                                                            subtypeCode,
+                                                            bin,
+                                                            v.validationId(),
+                                                            coerced.vf(),
+                                                            coerced.vn(),
+                                                            coerced.vt(),
+                                                            by
+                                                    )))
+                                            .next()
+                            ));
                 });
     }
 
     @Override
     public Mono<ValidationMap> changeStatus(String subtypeCode, String bin, String validationCode, String newStatus, String by) {
-        if (!"A".equals(newStatus) && !"I".equals(newStatus))
-            return Mono.error(new IllegalArgumentException("status inválido. Use A|I"));
+        if (!"A".equals(newStatus) && !"I".equals(newStatus)) {
+            return Mono.<ValidationMap>error(new AppException(AppError.RULES_MAP_INVALID_DATA, "status debe ser 'A' o 'I'"));
+        }
 
         return validations.findByCode(validationCode)
-                .switchIfEmpty(Mono.error(new NoSuchElementException("Validation no existe")))
+                .switchIfEmpty(Mono.<com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule.Validation>error(
+                        new AppException(AppError.RULES_VALIDATION_NOT_FOUND, "code=" + validationCode)))
                 .flatMap(v -> maps.findByNaturalKey(subtypeCode, bin, v.validationId()))
-                .switchIfEmpty(Mono.error(new NoSuchElementException("No hay mapping para esa regla")))
-                .map(m -> m.changeStatus(newStatus, by))
+                .switchIfEmpty(Mono.<ValidationMap>error(new AppException(
+                        AppError.RULES_MAP_NOT_FOUND,
+                        "No hay mapping para subtype=" + subtypeCode + ", bin=" + bin + ", code=" + validationCode)))
+                .map(m -> {
+                    try {
+                        return m.changeStatus(newStatus, by);
+                    } catch (IllegalArgumentException iae) {
+                        throw new AppException(AppError.RULES_MAP_INVALID_DATA, iae.getMessage());
+                    }
+                })
                 .flatMap(maps::save)
                 .as(tx::transactional);
     }
 
-    // ------------ helpers de coerción ------------
+    // ----------------- Helpers -----------------
+
+    private record Coerced(String vf, Double vn, String vt) {}
+
+    private static Coerced coerceValue(ValidationDataType dt, Object value) {
+        switch (dt) {
+            case BOOL -> {
+                String vf = coerceBool(value);
+                if (vf == null)
+                    throw new IllegalArgumentException("value debe ser booleano (true/false/1/0) o 'SI'/'NO'");
+                return new Coerced(vf, null, null);
+            }
+            case NUMBER -> {
+                Double vn = coerceNumber(value);
+                if (vn == null) throw new IllegalArgumentException("value debe ser numérico");
+                return new Coerced(null, vn, null);
+            }
+            case TEXT -> {
+                String vt = coerceText(value);
+                if (vt == null || vt.isBlank()) throw new IllegalArgumentException("value debe ser texto no vacío");
+                return new Coerced(null, null, vt);
+            }
+            default -> throw new IllegalArgumentException("dataType no soportado: " + dt);
+        }
+    }
 
     private static String coerceBool(Object value) {
         if (value instanceof Boolean b) return b ? "SI" : "NO";
@@ -118,7 +155,9 @@ public record MapRuleService(
     private static Double coerceNumber(Object value) {
         if (value instanceof Number n) return n.doubleValue();
         if (value instanceof String s) {
-            try { return Double.valueOf(s.trim()); } catch (NumberFormatException ignore) {}
+            try {
+                return Double.valueOf(s.trim());
+            } catch (NumberFormatException ignore) {}
         }
         return null;
     }

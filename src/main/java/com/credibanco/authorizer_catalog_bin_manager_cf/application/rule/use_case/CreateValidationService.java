@@ -4,6 +4,8 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.application.rule.port.in
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.rule.port.outbound.ValidationRepository;
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule.Validation;
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule.ValidationDataType;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppError;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Mono;
@@ -17,11 +19,14 @@ public record CreateValidationService(ValidationRepository repo, TransactionalOp
     @Override
     public Mono<Validation> execute(String code, String description, ValidationDataType type, String createdByNullable) {
         long t0 = System.nanoTime();
-        log.debug("UC:Validation:Create:start code={} type={}", code, type);
         return repo.existsByCode(code)
                 .flatMap(exists -> exists
-                        ? Mono.error(new IllegalStateException("Validation ya existe"))
-                        : repo.save(Validation.createNew(code, description, type, createdByNullable)))
+                        ? Mono.error(new AppException(AppError.RULES_VALIDATION_ALREADY_EXISTS, "code=" + code))
+                        : Mono.fromCallable(() -> Validation.createNew(code, description, type, createdByNullable))
+                        .onErrorMap(IllegalArgumentException.class,
+                                e -> new AppException(AppError.RULES_VALIDATION_INVALID_DATA, e.getMessage()))
+                        .flatMap(repo::save)
+                )
                 .doOnSuccess(v -> log.info("UC:Validation:Create:done code={} elapsedMs={}", code, ms(t0)))
                 .as(tx::transactional);
     }

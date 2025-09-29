@@ -33,20 +33,33 @@ public class BinHandler {
     private static long elapsedMs(long t0) { return (System.nanoTime() - t0) / 1_000_000; }
 
     private static Mono<Void> checkExtConstraints(String bin, String usesExt, Integer extDigits) {
-        if ("Y".equals(usesExt)) {
-            if (extDigits == null || !(extDigits == 1 || extDigits == 2 || extDigits == 3)) {
-                return Mono.error(new IllegalArgumentException("binExtDigits debe ser 1, 2 o 3 cuando usesBinExt='Y'"));
+        boolean uses = "Y".equalsIgnoreCase(usesExt);
+
+        if (uses) {
+            if (extDigits == null || (extDigits != 1 && extDigits != 2 && extDigits != 3)) {
+                return Mono.error(new AppException(
+                        AppError.BIN_EXT_DIGITS_INVALID,
+                        "binExtDigits debe ser 1, 2 o 3 cuando usesBinExt='Y'"
+                ));
             }
-            if (bin != null && bin.length() + extDigits > 9) {
-                return Mono.error(new IllegalArgumentException("bin + extensión no puede exceder 9 dígitos"));
+            int baseLen = (bin == null) ? 0 : bin.trim().length();
+            if (baseLen + extDigits > 9) {
+                return Mono.error(new AppException(
+                        AppError.BIN_EXT_TOTAL_LENGTH_OVERFLOW,
+                        "bin + extensión no puede exceder 9 dígitos"
+                ));
             }
         } else {
             if (extDigits != null) {
-                return Mono.error(new IllegalArgumentException("binExtDigits debe ser null cuando usesBinExt='N'"));
+                return Mono.error(new AppException(
+                        AppError.BIN_EXT_DIGITS_MUST_BE_NULL_ON_N,
+                        "binExtDigits debe ser null cuando usesBinExt='N'"
+                ));
             }
         }
         return Mono.empty();
     }
+
 
     private BinResponse toResponse(com.credibanco.authorizer_catalog_bin_manager_cf.domain.bin.Bin b) {
         return new BinResponse(

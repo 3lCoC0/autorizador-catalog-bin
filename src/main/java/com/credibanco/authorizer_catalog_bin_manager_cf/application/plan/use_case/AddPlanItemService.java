@@ -6,14 +6,14 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.application.plan.port.ou
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.plan.port.outbound.CommercePlanRepository;
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.plan.CommerceValidationMode;
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.plan.PlanItem;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppError;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
 import java.util.*;
-
-
-import java.util.NoSuchElementException;
 
 @Slf4j
 public record AddPlanItemService(CommercePlanRepository planRepo,
@@ -26,19 +26,24 @@ public record AddPlanItemService(CommercePlanRepository planRepo,
     public Mono<PlanItem> addValue(String planCode, String value, String by) {
         log.info("AddPlanItemService IN planCode={} value={} by={}", planCode, value, by);
         return planRepo.findByCode(planCode)
-                .switchIfEmpty(Mono.error(new NoSuchElementException("Plan no existe")))
+                .switchIfEmpty(Mono.<com.credibanco.authorizer_catalog_bin_manager_cf.domain.plan.CommercePlan>error(
+                        new AppException(AppError.PLAN_NOT_FOUND, "code=" + planCode)))
                 .flatMap(p -> {
+                    // Validación por modo
                     if (p.validationMode() == CommerceValidationMode.MCC) {
-                        if (!value.matches("^\\d{4}$")) {
-                            return Mono.error(new IllegalArgumentException("Para modo MCC, 'value' debe ser 4 dígitos"));
+                        if (value == null || !value.matches("^\\d{4}$")) {
+                            return Mono.<PlanItem>error(new AppException(AppError.PLAN_ITEM_INVALID_DATA,
+                                    "Para modo MCC, 'value' debe ser 4 dígitos"));
                         }
                     } else if (p.validationMode() == CommerceValidationMode.MERCHANT_ID) {
-                        if (!value.matches("^\\d{9}$")) {
-                            return Mono.error(new IllegalArgumentException("Para modo MERCHANT_ID, 'value' debe ser 9 dígitos"));
+                        if (value == null || !value.matches("^\\d{9}$")) {
+                            return Mono.<PlanItem>error(new AppException(AppError.PLAN_ITEM_INVALID_DATA,
+                                    "Para modo MERCHANT_ID, 'value' debe ser 9 dígitos"));
                         }
                     }
                     return itemRepo.findByValue(p.planId(), value)
-                            .flatMap(existing -> Mono.<PlanItem>error(new IllegalStateException("Ítem ya existe")))
+                            .flatMap(existing -> Mono.<PlanItem>error(
+                                    new AppException(AppError.PLAN_ITEM_INVALID_DATA, "Ítem ya existe")))
                             .switchIfEmpty(
                                     (p.validationMode() == CommerceValidationMode.MCC)
                                             ? itemRepo.insertMcc(p.planId(), value, by)
@@ -48,7 +53,7 @@ public record AddPlanItemService(CommercePlanRepository planRepo,
                 .doOnSuccess(pi -> log.info("AddPlanItemService OK planId={} itemId={}", pi.planId(), pi.planItemId()))
                 .as(tx::transactional)
                 .onErrorMap(org.springframework.dao.DuplicateKeyException.class,
-                        e -> new IllegalStateException("Ítem ya existe"));
+                        e -> new AppException(AppError.PLAN_ITEM_INVALID_DATA, "Ítem ya existe"));
     }
 
     @Override
@@ -64,16 +69,15 @@ public record AddPlanItemService(CommercePlanRepository planRepo,
                 .toList();
 
         return planRepo.findByCode(planCode)
-                .switchIfEmpty(Mono.error(new NoSuchElementException("Plan no existe")))
+                .switchIfEmpty(Mono.<com.credibanco.authorizer_catalog_bin_manager_cf.domain.plan.CommercePlan>error(
+                        new AppException(AppError.PLAN_NOT_FOUND, "code=" + planCode)))
                 .flatMap(plan -> {
                     var mode = plan.validationMode();
-
 
                     List<String> invalid = cleaned.stream()
                             .filter(v -> !isValid(mode, v))
                             .toList();
                     Set<String> invalidSet = new HashSet<>(invalid);
-
 
                     List<String> candidates = cleaned.stream()
                             .filter(v -> !invalidSet.contains(v))
@@ -105,7 +109,7 @@ public record AddPlanItemService(CommercePlanRepository planRepo,
                                 return insertBatches(plan.planId(), mode, toInsert, by)
                                         .map(inserted -> new PlanItemsBulkResult(
                                                 plan.code(),
-                                                rawValues == null ? 0 : rawValues.size(),
+                                                rawValues.size(),
                                                 inserted,
                                                 duplicates.size(),
                                                 invalid.size(),
@@ -121,8 +125,8 @@ public record AddPlanItemService(CommercePlanRepository planRepo,
 
     private boolean isValid(CommerceValidationMode mode, String v) {
         return switch (mode) {
-            case MCC -> v.matches("^\\d{4}$");
-            case MERCHANT_ID -> v.matches("^\\d{9}$");
+            case MCC -> v != null && v.matches("^\\d{4}$");
+            case MERCHANT_ID -> v != null && v.matches("^\\d{9}$");
         };
     }
 

@@ -3,10 +3,10 @@ package com.credibanco.authorizer_catalog_bin_manager_cf.application.bin.use_cas
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.bin.port.inbound.GetBinUseCase;
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.bin.port.outbound.BinRepository;
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.bin.Bin;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppError;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppException;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
-
-import java.util.NoSuchElementException;
 
 @Slf4j
 public class GetBinService implements GetBinUseCase {
@@ -21,7 +21,7 @@ public class GetBinService implements GetBinUseCase {
         log.debug("UC:GetBin:start bin={}", bin);
 
         return repo.findById(bin)
-                .switchIfEmpty(Mono.error(new NoSuchElementException("BIN no encontrado")))
+                .switchIfEmpty(Mono.error(new AppException(AppError.BIN_NOT_FOUND, "bin=" + bin)))
                 .doOnSuccess(b -> log.info("UC:GetBin:done bin={}, status={}, elapsedMs={}",
                         b.bin(), b.status(), ms(t0)));
     }

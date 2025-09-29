@@ -1,15 +1,14 @@
-// application/subtype/use_case/UpdateSubtypeBasicsService.java
 package com.credibanco.authorizer_catalog_bin_manager_cf.application.subtype.use_case;
 
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.subtype.port.inbound.UpdateSubtypeBasicsUseCase;
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.subtype.port.outbound.BinReadOnlyRepository;
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.subtype.port.outbound.SubtypeRepository;
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.subtype.Subtype;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppError;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Mono;
-
-import java.util.NoSuchElementException;
 
 @Slf4j
 public record UpdateSubtypeBasicsService(
@@ -31,21 +30,37 @@ public record UpdateSubtypeBasicsService(
                 bin, subtypeCode, ownerIdType, newBinExt != null);
 
         return repo.findByPk(bin, subtypeCode)
-                .switchIfEmpty(Mono.error(new NoSuchElementException("SUBTYPE no encontrado")))
-                .flatMap(current -> {
-                    Subtype updated = current.updateBasics(name, description, ownerIdType, ownerIdNumber, newBinExt, updatedByNullable);
+                .switchIfEmpty(Mono.error(new AppException(AppError.SUBTYPE_NOT_FOUND, "bin=" + bin + ", code=" + subtypeCode)))
+                .flatMap(current ->
+                        binRepo.getExtConfig(current.bin())
+                                .switchIfEmpty(Mono.error(new AppException(AppError.BIN_NOT_FOUND, "bin=" + current.bin())))
+                                .flatMap(cfg -> {
+                                    String normExt;
+                                    try {
+                                        normExt = normalizeExtAgainstConfig(current.bin(), newBinExt, cfg.usesBinExt(), cfg.binExtDigits());
+                                    } catch (IllegalArgumentException iae) {
+                                        return Mono.error(new AppException(AppError.SUBTYPE_INVALID_DATA, iae.getMessage()));
+                                    }
 
-                    boolean extChanged = (current.binExt() == null && updated.binExt() != null)
-                            || (current.binExt() != null && !current.binExt().equals(updated.binExt()));
+                                    Subtype updated;
+                                    try {
+                                        updated = current.updateBasics(name, description, ownerIdType, ownerIdNumber, normExt, updatedByNullable);
+                                    } catch (IllegalArgumentException iae) {
+                                        return Mono.error(new AppException(AppError.SUBTYPE_INVALID_DATA, iae.getMessage()));
+                                    }
 
-                    Mono<Boolean> extExists = extChanged && updated.binExt() != null
-                            ? repo.existsByBinAndExt(updated.bin(), updated.binExt())
-                            : Mono.just(false);
+                                    boolean extChanged = (current.binExt() == null && updated.binExt() != null)
+                                            || (current.binExt() != null && !current.binExt().equals(updated.binExt()));
 
-                    return extExists.flatMap(exists -> exists
-                            ? Mono.error(new IllegalStateException("bin_ext ya usado para ese BIN"))
-                            : repo.save(updated));
-                })
+                                    Mono<Boolean> extExists = extChanged && updated.binExt() != null
+                                            ? repo.existsByBinAndExt(updated.bin(), updated.binExt())
+                                            : Mono.just(false);
+
+                                    return extExists.flatMap(exists -> exists
+                                            ? Mono.error(new AppException(AppError.SUBTYPE_ALREADY_EXISTS, "bin_ext ya usado para ese BIN"))
+                                            : repo.save(updated));
+                                })
+                )
                 .doOnSuccess(s -> log.info("UC:Subtype:Update:done bin={} code={} elapsedMs={}",
                         s.bin(), s.subtypeCode(), ms(t0)))
                 .as(tx::transactional);
@@ -59,7 +74,6 @@ public record UpdateSubtypeBasicsService(
             if (baseLen == 9) throw new IllegalArgumentException("Config inválida: BIN(9) no admite extensión");
             if (digits == null || digits < 1 || digits > maxLen)
                 throw new IllegalArgumentException("Config inválida: BIN_EXT_DIGITS fuera de rango (máx " + maxLen + ")");
-
             if (rawExt == null || rawExt.isBlank())
                 throw new IllegalArgumentException("bin_ext es requerido por configuración del BIN");
 

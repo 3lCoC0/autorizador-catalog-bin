@@ -3,6 +3,8 @@ package com.credibanco.authorizer_catalog_bin_manager_cf.application.bin.use_cas
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.bin.port.inbound.ListBinsUseCase;
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.bin.port.outbound.BinRepository;
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.bin.Bin;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppError;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppException;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 
@@ -17,6 +19,11 @@ public class ListBinsService implements ListBinsUseCase {
     public Flux<Bin> execute(int page, int size) {
         long t0 = System.nanoTime();
         log.info("UC:ListBins:start page={}, size={}", page, size);
+
+        if (page < 0 || size <= 0) {
+            return Flux.error(new AppException(AppError.BIN_INVALID_DATA,
+                    "page debe ser >=0 y size > 0"));
+        }
 
         return repo.findAll(page, size)
                 .doOnComplete(() -> log.info("UC:ListBins:done page={}, size={}, elapsedMs={}",

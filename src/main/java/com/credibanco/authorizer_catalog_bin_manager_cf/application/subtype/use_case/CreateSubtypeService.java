@@ -1,4 +1,3 @@
-// application/subtype/use_case/CreateSubtypeService.java
 package com.credibanco.authorizer_catalog_bin_manager_cf.application.subtype.use_case;
 
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.subtype.port.inbound.CreateSubtypeUseCase;
@@ -6,10 +5,11 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.application.subtype.port
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.subtype.port.outbound.IdTypeReadOnlyRepository;
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.subtype.port.outbound.SubtypeRepository;
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.subtype.Subtype;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppError;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Mono;
-
-import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public record CreateSubtypeService(
@@ -28,22 +28,35 @@ public record CreateSubtypeService(
         log.debug("UC:Subtype:Create:start bin={} code={} ownerIdType={} usesBy={}", bin, subtypeCode, ownerIdType, createdBy);
 
         Mono<BinReadOnlyRepository.BinExtConfig> cfgMono = binRepo.getExtConfig(bin)
-                .switchIfEmpty(Mono.error(new IllegalArgumentException("BIN no existe (FK)")));
+                .switchIfEmpty(Mono.error(new AppException(AppError.BIN_NOT_FOUND, "bin=" + bin)));
 
-        Mono<Boolean> fkIdType = (ownerIdType == null || ownerIdType.isBlank())
+        Mono<Boolean> fkIdTypeOk = (ownerIdType == null || ownerIdType.isBlank())
                 ? Mono.just(true) : idTypeRepo.existsById(ownerIdType);
 
-        return Mono.zip(cfgMono, fkIdType)
+        return Mono.zip(cfgMono, fkIdTypeOk)
                 .flatMap(t -> {
                     var cfg = t.getT1();
                     boolean idTypeOk = t.getT2();
-                    if (!idTypeOk) return Mono.error(new IllegalArgumentException("OWNER_ID_TYPE no existe"));
+                    if (!idTypeOk)
+                        return Mono.error(new AppException(AppError.SUBTYPE_INVALID_DATA, "OWNER_ID_TYPE no existe: " + ownerIdType));
 
                     log.debug("UC:Subtype:Create:binConfig bin={} uses={} digits={}", bin, cfg.usesBinExt(), cfg.binExtDigits());
 
-                    String normExt = normalizeExtAgainstConfig(bin, binExt, cfg.usesBinExt(), cfg.binExtDigits());
-                    Subtype draft = Subtype.createNew(subtypeCode, bin, name, description, ownerIdType, ownerIdNumber, normExt, createdBy)
-                            .changeStatus("I", createdBy);
+                    String normExt;
+                    try {
+                        normExt = normalizeExtAgainstConfig(bin, binExt, cfg.usesBinExt(), cfg.binExtDigits());
+                    } catch (IllegalArgumentException iae) {
+                        return Mono.error(new AppException(AppError.SUBTYPE_INVALID_DATA, iae.getMessage()));
+                    }
+
+                    Subtype draft;
+                    try {
+                        draft = Subtype.createNew(subtypeCode, bin, name, description,
+                                        ownerIdType, ownerIdNumber, normExt, createdBy)
+                                .changeStatus("I", createdBy);
+                    } catch (IllegalArgumentException iae) {
+                        return Mono.error(new AppException(AppError.SUBTYPE_INVALID_DATA, iae.getMessage()));
+                    }
 
                     Mono<Boolean> bin9Collision = (normExt != null)
                             ? binRepo.existsById(draft.binEfectivo()) : Mono.just(false);
@@ -52,10 +65,12 @@ public record CreateSubtypeService(
 
                     return Mono.zip(bin9Collision, pkExists, extExists)
                             .flatMap(z -> {
-                                if (z.getT1()) return Mono.error(new IllegalStateException(
-                                        "Colisión: ya existe BIN maestro " + draft.binEfectivo() + " (use ese BIN)"));
-                                if (z.getT2()) return Mono.error(new IllegalStateException("Ya existe SUBTYPE para ese BIN y código"));
-                                if (z.getT3()) return Mono.error(new IllegalStateException("bin_ext ya usado para ese BIN"));
+                                if (z.getT1()) return Mono.error(new AppException(AppError.BIN_ALREADY_EXISTS,
+                                        "Colisión: ya existe BIN maestro " + draft.binEfectivo()));
+                                if (z.getT2()) return Mono.error(new AppException(AppError.SUBTYPE_ALREADY_EXISTS,
+                                        "Ya existe SUBTYPE para ese BIN y código"));
+                                if (z.getT3()) return Mono.error(new AppException(AppError.SUBTYPE_ALREADY_EXISTS,
+                                        "bin_ext ya usado para ese BIN"));
                                 return repo.save(draft);
                             });
                 })
@@ -83,4 +98,3 @@ public record CreateSubtypeService(
         }
     }
 }
-
