@@ -21,8 +21,8 @@ public class ListBinsService implements ListBinsUseCase {
         log.info("UC:ListBins:start page={}, size={}", page, size);
 
         if (page < 0 || size <= 0) {
-            return Flux.error(new AppException(AppError.BIN_INVALID_DATA,
-                    "page debe ser >=0 y size > 0"));
+            return Flux.error(new AppException(AppError.BIN_INVALID_DATA
+                    ));
         }
 
         return repo.findAll(page, size)

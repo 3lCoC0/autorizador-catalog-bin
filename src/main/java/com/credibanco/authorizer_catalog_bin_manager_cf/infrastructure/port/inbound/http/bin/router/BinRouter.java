@@ -19,11 +19,11 @@ public class BinRouter {
     @Bean("binRoutes")
     RouterFunction<ServerResponse> routes() {
         return RouterFunctions.route()
-                .POST("/v1/bins", accept(MediaType.APPLICATION_JSON), handler::create)
-                .GET("/v1/bins",  accept(MediaType.APPLICATION_JSON), handler::list)
-                .GET("/v1/bins/{bin}",  accept(MediaType.APPLICATION_JSON), handler::get)
-                .PUT("/v1/bins/{bin}",(accept(MediaType.APPLICATION_JSON)), handler::update)
-                .PUT ("/v1/bins/{bin}/status",     accept(MediaType.APPLICATION_JSON), handler::changeStatus)
+                .POST("/bins/create", accept(MediaType.APPLICATION_JSON), handler::create)
+                .GET("/bins/list",  accept(MediaType.APPLICATION_JSON), handler::list)
+                .GET("/bins/get/{bin}",  accept(MediaType.APPLICATION_JSON), handler::get)
+                .PUT("/bins/update",(accept(MediaType.APPLICATION_JSON)), handler::update)
+                .PUT ("/bins/update/status/{bin}",     accept(MediaType.APPLICATION_JSON), handler::changeStatus)
                 .build();
     }
 }

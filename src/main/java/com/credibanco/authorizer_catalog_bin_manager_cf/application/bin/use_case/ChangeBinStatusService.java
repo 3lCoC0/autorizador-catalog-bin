@@ -26,7 +26,7 @@ public record ChangeBinStatusService(BinRepository repo, TransactionalOperator t
         }
 
         return repo.findById(bin)
-                .switchIfEmpty(Mono.error(new AppException(AppError.BIN_NOT_FOUND, "bin=" + bin)))
+                .switchIfEmpty(Mono.error(new AppException(AppError.BIN_NOT_FOUND)))
                 .flatMap(current ->
                         Mono.defer(() -> Mono.just(current.changeStatus(newStatus, updatedByNullable)))
                                 .onErrorMap(IllegalArgumentException.class,
