@@ -17,11 +17,11 @@ public class AgencyRouter {
     @Bean("agencyRoutes")
     RouterFunction<ServerResponse> routes() {
         return RouterFunctions.route()
-                .POST("/v1/agencies", accept(MediaType.APPLICATION_JSON), handler::create)
-                .GET ("/v1/agencies",  accept(MediaType.APPLICATION_JSON), handler::list)
-                .GET ("/v1/agencies/{subtypeCode}/{agencyCode}", accept(MediaType.APPLICATION_JSON), handler::get)
-                .PUT ("/v1/agencies/{subtypeCode}/{agencyCode}", accept(MediaType.APPLICATION_JSON), handler::update)
-                .PUT ("/v1/agencies/{subtypeCode}/{agencyCode}/status", accept(MediaType.APPLICATION_JSON), handler::changeStatus)
+                .POST("/agencies/create", accept(MediaType.APPLICATION_JSON), handler::create)
+                .GET ("/agencies/list/{subtypeCode}",  accept(MediaType.APPLICATION_JSON), handler::list)
+                .GET ("/agencies/get/{subtypeCode}/{agencyCode}", accept(MediaType.APPLICATION_JSON), handler::get)
+                .PUT ("/agencies/update/{subtypeCode}/{agencyCode}", accept(MediaType.APPLICATION_JSON), handler::update)
+                .PUT ("/agencies/update/status/{subtypeCode}/{agencyCode}", accept(MediaType.APPLICATION_JSON), handler::changeStatus)
                 .build();
     }
 }

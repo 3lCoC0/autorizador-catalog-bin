@@ -44,7 +44,7 @@ public record MapRuleService(
         return ensureSubtype.then(ensurePair)
                 .then(validations.findByCode(validationCode)
                         .switchIfEmpty(Mono.<com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule.Validation>error(
-                                new AppException(AppError.RULES_VALIDATION_NOT_FOUND, "code=" + validationCode))))
+                                new AppException(AppError.RULES_VALIDATION_NOT_FOUND))))
                 .flatMap(v -> {
                     boolean vigente = "A".equals(v.status())
                             && (v.validFrom() == null || !v.validFrom().isAfter(now))
@@ -92,7 +92,7 @@ public record MapRuleService(
 
         return validations.findByCode(validationCode)
                 .switchIfEmpty(Mono.<com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule.Validation>error(
-                        new AppException(AppError.RULES_VALIDATION_NOT_FOUND, "code=" + validationCode)))
+                        new AppException(AppError.RULES_VALIDATION_NOT_FOUND)))
                 .flatMap(v -> maps.findByNaturalKey(subtypeCode, bin, v.validationId()))
                 .switchIfEmpty(Mono.<ValidationMap>error(new AppException(
                         AppError.RULES_MAP_NOT_FOUND,

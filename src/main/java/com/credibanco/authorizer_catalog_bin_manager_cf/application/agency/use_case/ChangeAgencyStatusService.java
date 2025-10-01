@@ -29,8 +29,7 @@ public record ChangeAgencyStatusService(AgencyRepository repo,
                         : Mono.error(new AppException(AppError.SUBTYPE_NOT_FOUND)));
 
         return repo.findByPk(subtypeCode, agencyCode)
-                .switchIfEmpty(Mono.error(new AppException(AppError.AGENCY_NOT_FOUND,
-                        "subtypeCode=" + subtypeCode + ", agencyCode=" + agencyCode)))
+                .switchIfEmpty(Mono.error(new AppException(AppError.AGENCY_NOT_FOUND)))
                 .flatMap(ensureSubtypeExists::thenReturn)
                 .flatMap(cur -> {
                     if ("I".equals(newStatus) && "A".equals(cur.status())) {

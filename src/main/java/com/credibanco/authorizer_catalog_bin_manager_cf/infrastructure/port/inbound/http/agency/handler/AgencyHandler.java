@@ -133,19 +133,15 @@ public class AgencyHandler {
         long t0 = System.nanoTime();
         String subtype = req.queryParam("subtypeCode")
                 .orElseThrow(() -> new IllegalArgumentException("subtypeCode es requerido"));
-
         String rawStatus = req.queryParam("status").map(String::trim).map(String::toUpperCase)
                 .filter(s -> !s.isEmpty()).orElse(null);
         final String status = "ALL".equals(rawStatus) ? null : rawStatus;
         if (status != null && !"A".equals(status) && !"I".equals(status))
             return Mono.error(new IllegalArgumentException("status debe ser 'A', 'I' o 'ALL'"));
-
         String search = req.queryParam("search").orElse(null);
         int page = req.queryParam("page").map(Integer::parseInt).orElse(0);
         int size = req.queryParam("size").map(Integer::parseInt).orElse(20);
-
         log.info("AGENCY:list:recv st={} status={} page={} size={}", subtype, status, page, size);
-
         return listUC.execute(subtype, status, search, page, size)
                 .map(this::toResponse)
                 .collectList()

@@ -20,17 +20,17 @@ public class RuleRouter {
     RouterFunction<ServerResponse> routes() {
         return RouterFunctions.route()
 
-                .POST("/v1/validations", accept(MediaType.APPLICATION_JSON), h::createValidation)
-                .GET ("/v1/validations",  accept(MediaType.APPLICATION_JSON), h::listValidations)
-                .GET ("/v1/validations/{code}", accept(MediaType.APPLICATION_JSON), h::getValidation)
-                .PUT ("/v1/validations/{code}", accept(MediaType.APPLICATION_JSON), h::updateValidation)
-                .PUT ("/v1/validations/{code}/status", accept(MediaType.APPLICATION_JSON), h::changeValidationStatus)
+                .POST("/validations/create", accept(MediaType.APPLICATION_JSON), h::createValidation)
+                .GET ("/validations/list",  accept(MediaType.APPLICATION_JSON), h::listValidations)
+                .GET ("/validations/get/{code}", accept(MediaType.APPLICATION_JSON), h::getValidation)
+                .PUT ("/validations/update/{code}", accept(MediaType.APPLICATION_JSON), h::updateValidation)
+                .PUT ("/validations/update/status/{code}", accept(MediaType.APPLICATION_JSON), h::changeValidationStatus)
 
-                .POST("/v1/rules/map", accept(MediaType.APPLICATION_JSON), h::attachRule)
+                .POST("/validations/attach", accept(MediaType.APPLICATION_JSON), h::attachRule)
 
-                .PUT ("/v1/subtypes/{subtypeCode}/bins/{bin}/rules/{code}/status", accept(MediaType.APPLICATION_JSON), h::changeRuleStatus)
-                .GET ("/v1/subtypes/{subtypeCode}/bins/{bin}/rules", accept(MediaType.APPLICATION_JSON), h::listRulesForSubtype)
-                .GET ("/v1/subtypes/{subtypeCode}/rules", accept(MediaType.APPLICATION_JSON), h::listRulesForSubtypeBySubtype)
+                .PUT ("/validations/subtypes/{subtypeCode}/bins/{bin}/rules/status/{code}", accept(MediaType.APPLICATION_JSON), h::changeRuleStatus)
+
+                .GET ("/validations/subtypes/list/{subtypeCode}", accept(MediaType.APPLICATION_JSON), h::listRulesForSubtypeBySubtype)
                 .build();
     }
 }

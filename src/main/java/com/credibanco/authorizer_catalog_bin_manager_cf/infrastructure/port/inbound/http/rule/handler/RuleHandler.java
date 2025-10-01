@@ -124,7 +124,7 @@ public class RuleHandler {
     public Mono<ServerResponse> changeRuleStatus(ServerRequest req) {
         long t0 = System.nanoTime();
         var st  = req.pathVariable("subtypeCode");
-        var bin = req.pathVariable("binEfectivo");
+        var bin = req.pathVariable("bin");
         var code= req.pathVariable("code");
         return req.bodyToMono(ValidationStatusRequest.class)
                 .doOnSubscribe(s -> log.info("RULES:map:status:recv st={} bin={} code={}", st, bin, code))

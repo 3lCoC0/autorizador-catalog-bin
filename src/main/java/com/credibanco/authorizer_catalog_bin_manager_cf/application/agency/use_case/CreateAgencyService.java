@@ -26,8 +26,7 @@ public record CreateAgencyService(AgencyRepository repo,
                 .flatMap(exists -> exists
                         ? repo.existsByPk(draft.subtypeCode(), draft.agencyCode())
                         .flatMap(dup -> dup
-                                ? Mono.error(new AppException(AppError.AGENCY_ALREADY_EXISTS,
-                                "subtypeCode=" + draft.subtypeCode() + ", agencyCode=" + draft.agencyCode()))
+                                ? Mono.error(new AppException(AppError.AGENCY_ALREADY_EXISTS))
                                 : repo.save(draft))
                         : Mono.error(new AppException(AppError.SUBTYPE_NOT_FOUND,
                         "subtypeCode=" + draft.subtypeCode())))
