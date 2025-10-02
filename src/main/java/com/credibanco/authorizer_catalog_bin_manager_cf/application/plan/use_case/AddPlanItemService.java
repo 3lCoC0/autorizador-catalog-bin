@@ -27,7 +27,7 @@ public record AddPlanItemService(CommercePlanRepository planRepo,
         log.info("AddPlanItemService IN planCode={} value={} by={}", planCode, value, by);
         return planRepo.findByCode(planCode)
                 .switchIfEmpty(Mono.<com.credibanco.authorizer_catalog_bin_manager_cf.domain.plan.CommercePlan>error(
-                        new AppException(AppError.PLAN_NOT_FOUND, "code=" + planCode)))
+                        new AppException(AppError.PLAN_NOT_FOUND)))
                 .flatMap(p -> {
                     // Validación por modo
                     if (p.validationMode() == CommerceValidationMode.MCC) {
@@ -70,7 +70,7 @@ public record AddPlanItemService(CommercePlanRepository planRepo,
 
         return planRepo.findByCode(planCode)
                 .switchIfEmpty(Mono.<com.credibanco.authorizer_catalog_bin_manager_cf.domain.plan.CommercePlan>error(
-                        new AppException(AppError.PLAN_NOT_FOUND, "code=" + planCode)))
+                        new AppException(AppError.PLAN_NOT_FOUND)))
                 .flatMap(plan -> {
                     var mode = plan.validationMode();
 

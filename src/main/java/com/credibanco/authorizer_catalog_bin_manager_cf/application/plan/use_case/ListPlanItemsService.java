@@ -23,7 +23,7 @@ public record ListPlanItemsService(CommercePlanRepository planRepo,
         }
         return planRepo.findByCode(planCode)
                 .switchIfEmpty(Mono.<com.credibanco.authorizer_catalog_bin_manager_cf.domain.plan.CommercePlan>error(
-                        new AppException(AppError.PLAN_NOT_FOUND, "code=" + planCode)))
+                        new AppException(AppError.PLAN_NOT_FOUND)))
                 .flatMapMany(p -> itemRepo.listItems(p.planId(), status, page, size))
                 .doOnComplete(() -> log.info("ListPlanItemsService OK code={}", planCode));
     }

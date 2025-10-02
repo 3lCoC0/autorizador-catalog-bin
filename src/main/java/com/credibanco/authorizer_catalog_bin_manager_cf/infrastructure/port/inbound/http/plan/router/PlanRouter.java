@@ -21,22 +21,22 @@ public class PlanRouter {
     RouterFunction<ServerResponse> routes() {
         return RouterFunctions.route()
                 // CRUD Plan
-                .POST("/v1/plans", accept(MediaType.APPLICATION_JSON), handler::create)
-                .GET ("/v1/plans",  accept(MediaType.APPLICATION_JSON), handler::list)
-                .GET ("/v1/plans/{code}", accept(MediaType.APPLICATION_JSON), handler::get)
-                .PUT ("/v1/plans/status", accept(MediaType.APPLICATION_JSON), handler::changeStatus)
-                .PUT ("/v1/plans/{code}", accept(MediaType.APPLICATION_JSON), handler::update)
+                .POST("/plans/create", accept(MediaType.APPLICATION_JSON), handler::create)
+                .GET ("/plans/list",  accept(MediaType.APPLICATION_JSON), handler::list)
+                .GET ("/plans/get/{code}", accept(MediaType.APPLICATION_JSON), handler::get)
+                .PUT ("/plans/update/status", accept(MediaType.APPLICATION_JSON), handler::changeStatus)
+                .PUT ("/plans/update/{code}", accept(MediaType.APPLICATION_JSON), handler::update)
 
 
 
-                .POST("/v1/plans/items", accept(MediaType.APPLICATION_JSON), handler::addItem)
+                .POST("/plans/items/attach", accept(MediaType.APPLICATION_JSON), handler::addItem)
 
-                .GET ("/v1/plans/{code}/items", accept(MediaType.APPLICATION_JSON), handler::listItems)
+                .GET ("/plans/items/get/{code}", accept(MediaType.APPLICATION_JSON), handler::listItems)
 
-                .PUT ("/v1/plans/items/status", accept(MediaType.APPLICATION_JSON), handler::changeItemStatus)
+                .PUT ("/plans/items/update/status", accept(MediaType.APPLICATION_JSON), handler::changeItemStatus)
 
 
-                .POST("/v1/plans/assign", accept(MediaType.APPLICATION_JSON), handler::assignToSubtype)
+                .POST("/plans/assign/subtype", accept(MediaType.APPLICATION_JSON), handler::assignToSubtype)
 
                 .build();
     }
