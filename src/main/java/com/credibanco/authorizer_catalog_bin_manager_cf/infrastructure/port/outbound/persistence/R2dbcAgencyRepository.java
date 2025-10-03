@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.function.BiFunction;
+
 @Slf4j
 @Repository
 public class R2dbcAgencyRepository implements AgencyRepository {
@@ -21,39 +22,46 @@ public class R2dbcAgencyRepository implements AgencyRepository {
     private static final ZoneId ZONE = ZoneId.systemDefault();
     private final DatabaseClient db;
 
-    public R2dbcAgencyRepository(DatabaseClient db) { this.db = db; }
-    private static long ms(long t0) { return (System.nanoTime()-t0)/1_000_000; }
+    public R2dbcAgencyRepository(DatabaseClient db) {
+        this.db = db;
+    }
+
+    private static long ms(long t0) {
+        return (System.nanoTime() - t0) / 1_000_000;
+    }
 
     private static OffsetDateTime toOffset(Row row, String col) {
-        LocalDateTime ldt = row.get(col, LocalDateTime.class);
-        if (ldt != null) return ldt.atZone(ZONE).toOffsetDateTime();
+        LocalDateTime localDateTime = row.get(col, LocalDateTime.class);
+        if (localDateTime != null) {
+            return localDateTime.atZone(ZONE).toOffsetDateTime();
+        }
         return row.get(col, OffsetDateTime.class);
     }
 
-    private static final BiFunction<Row, RowMetadata, Agency> MAPPER = (r, m) ->
+    private static final BiFunction<Row, RowMetadata, Agency> MAPPER = (row, metadata) ->
             Agency.rehydrate(
-                    r.get("subtype_code", String.class),
-                    r.get("agency_code", String.class),
-                    r.get("name", String.class),
-                    r.get("agency_nit", String.class),
-                    r.get("address", String.class),
-                    r.get("phone", String.class),
-                    r.get("municipality_dane_code", String.class),
-                    r.get("embosser_highlight", String.class),
-                    r.get("embosser_pins", String.class),
-                    r.get("card_custodian_primary", String.class),
-                    r.get("card_custodian_primary_id", String.class),
-                    r.get("card_custodian_secondary", String.class),
-                    r.get("card_custodian_secondary_id", String.class),
-                    r.get("pin_custodian_primary", String.class),
-                    r.get("pin_custodian_primary_id", String.class),
-                    r.get("pin_custodian_secondary", String.class),
-                    r.get("pin_custodian_secondary_id", String.class),
-                    r.get("description", String.class),
-                    r.get("status", String.class),
-                    toOffset(r, "created_at"),
-                    toOffset(r, "updated_at"),
-                    r.get("updated_by", String.class)
+                    row.get("subtype_code", String.class),
+                    row.get("agency_code", String.class),
+                    row.get("name", String.class),
+                    row.get("agency_nit", String.class),
+                    row.get("address", String.class),
+                    row.get("phone", String.class),
+                    row.get("municipality_dane_code", String.class),
+                    row.get("embosser_highlight", String.class),
+                    row.get("embosser_pins", String.class),
+                    row.get("card_custodian_primary", String.class),
+                    row.get("card_custodian_primary_id", String.class),
+                    row.get("card_custodian_secondary", String.class),
+                    row.get("card_custodian_secondary_id", String.class),
+                    row.get("pin_custodian_primary", String.class),
+                    row.get("pin_custodian_primary_id", String.class),
+                    row.get("pin_custodian_secondary", String.class),
+                    row.get("pin_custodian_secondary_id", String.class),
+                    row.get("description", String.class),
+                    row.get("status", String.class),
+                    toOffset(row, "created_at"),
+                    toOffset(row, "updated_at"),
+                    row.get("updated_by", String.class)
             );
 
     @Override
@@ -67,7 +75,10 @@ public class R2dbcAgencyRepository implements AgencyRepository {
                 """)
                 .bind("st", subtypeCode)
                 .bind("ag", agencyCode)
-                .map((r,m) -> 1).first().map(x -> true).defaultIfEmpty(false)
+                .map((row, metadata) -> 1)
+                .first()
+                .map(x -> true)
+                .defaultIfEmpty(false)
                 .doOnSuccess(exists -> log.debug("Repo:AGENCY:existsByPk:done st={} ag={} exists={} elapsedMs={}",
                         subtypeCode, agencyCode, exists, ms(t0)))
                 .doOnError(e -> log.warn("Repo:AGENCY:existsByPk:error st={} ag={}", subtypeCode, agencyCode, e));
@@ -82,7 +93,7 @@ public class R2dbcAgencyRepository implements AgencyRepository {
         """)
                 .bind("st", subtypeCode)
                 .bind("ag", excludeAgencyCode)
-                .map((r,m) -> 1)
+                .map((row, metadata) -> 1)
                 .first()
                 .map(x -> true)
                 .defaultIfEmpty(false);
@@ -103,8 +114,10 @@ public class R2dbcAgencyRepository implements AgencyRepository {
                   FROM AGENCY
                  WHERE SUBTYPE_CODE=:st AND AGENCY_CODE=:ag
                 """)
-                .bind("st", subtypeCode).bind("ag", agencyCode)
-                .map(MAPPER).one()
+                .bind("st", subtypeCode)
+                .bind("ag", agencyCode)
+                .map(MAPPER)
+                .one()
                 .doOnSuccess(a -> log.debug("Repo:AGENCY:findByPk:hit st={} ag={} elapsedMs={}",
                         subtypeCode, agencyCode, ms(t0)))
                 .doOnError(e -> log.warn("Repo:AGENCY:findByPk:error st={} ag={}", subtypeCode, agencyCode, e));
@@ -130,17 +143,32 @@ public class R2dbcAgencyRepository implements AgencyRepository {
                        DESCRIPTION, STATUS, CREATED_AT, UPDATED_AT, UPDATED_BY
                   FROM AGENCY WHERE 1=1
                 """);
-        if (subtypeCode != null) sql.append(" AND SUBTYPE_CODE=:st");
-        if (status != null)      sql.append(" AND STATUS=:status");
-        if (search != null)      sql.append(" AND (UPPER(NAME) LIKE '%'||UPPER(:q)||'%' OR UPPER(AGENCY_CODE) LIKE '%'||UPPER(:q)||'%')");
+        if (subtypeCode != null) {
+            sql.append(" AND SUBTYPE_CODE=:st");
+        }
+        if (status != null) {
+            sql.append(" AND STATUS=:status");
+        }
+        if (search != null) {
+            sql.append(" AND (UPPER(NAME) LIKE '%'||UPPER(:q)||'%' OR UPPER(AGENCY_CODE) LIKE '%'||UPPER(:q)||'%')");
+        }
         sql.append(" ORDER BY SUBTYPE_CODE, AGENCY_CODE OFFSET :offset ROWS FETCH NEXT :size ROWS ONLY");
 
         var spec = db.sql(sql.toString());
-        if (subtypeCode != null) spec = spec.bind("st", subtypeCode);
-        if (status != null)      spec = spec.bind("status", status);
-        if (search != null)      spec = spec.bind("q", search);
+        if (subtypeCode != null) {
+            spec = spec.bind("st", subtypeCode);
+        }
+        if (status != null) {
+            spec = spec.bind("status", status);
+        }
+        if (search != null) {
+            spec = spec.bind("q", search);
+        }
 
-        return spec.bind("offset", offset).bind("size", s).map(MAPPER).all()
+        return spec.bind("offset", offset)
+                .bind("size", s)
+                .map(MAPPER)
+                .all()
                 .doOnComplete(() -> log.info("Repo:AGENCY:findAll:done st={} status={} page={} size={} elapsedMs={}",
                         subtypeCode, status, p, s, ms(t0)))
                 .doOnError(e -> log.warn("Repo:AGENCY:findAll:error st={} status={} page={} size={}",
@@ -194,26 +222,27 @@ public class R2dbcAgencyRepository implements AgencyRepository {
                 .bind("name", a.name())
                 .bind("status", a.status());
 
-        spec = bindOrNull(spec, "nit",   a.agencyNit());
-        spec = bindOrNull(spec, "addr",  a.address());
+        spec = bindOrNull(spec, "nit", a.agencyNit());
+        spec = bindOrNull(spec, "addr", a.address());
         spec = bindOrNull(spec, "phone", a.phone());
-        spec = bindOrNull(spec, "dane",  a.municipalityDaneCode());
-        spec = bindOrNull(spec, "eh",    a.embosserHighlight());
-        spec = bindOrNull(spec, "ep",    a.embosserPins());
-        spec = bindOrNull(spec, "ccp",   a.cardCustodianPrimary());
+        spec = bindOrNull(spec, "dane", a.municipalityDaneCode());
+        spec = bindOrNull(spec, "eh", a.embosserHighlight());
+        spec = bindOrNull(spec, "ep", a.embosserPins());
+        spec = bindOrNull(spec, "ccp", a.cardCustodianPrimary());
         spec = bindOrNull(spec, "ccpid", a.cardCustodianPrimaryId());
-        spec = bindOrNull(spec, "ccs",   a.cardCustodianSecondary());
+        spec = bindOrNull(spec, "ccs", a.cardCustodianSecondary());
         spec = bindOrNull(spec, "ccsid", a.cardCustodianSecondaryId());
-        spec = bindOrNull(spec, "pcp",   a.pinCustodianPrimary());
+        spec = bindOrNull(spec, "pcp", a.pinCustodianPrimary());
         spec = bindOrNull(spec, "pcpid", a.pinCustodianPrimaryId());
-        spec = bindOrNull(spec, "pcs",   a.pinCustodianSecondary());
+        spec = bindOrNull(spec, "pcs", a.pinCustodianSecondary());
         spec = bindOrNull(spec, "pcsid", a.pinCustodianSecondaryId());
         spec = bindOrNull(spec, "descr", a.description());
-        // ← clave: if null, bindNull
-        spec = (a.updatedBy() != null) ? spec.bind("by", a.updatedBy())
+        spec = (a.updatedBy() != null)
+                ? spec.bind("by", a.updatedBy())
                 : spec.bindNull("by", String.class);
 
-        return spec.fetch().rowsUpdated()
+        return spec.fetch()
+                .rowsUpdated()
                 .doOnNext(n -> log.debug("Repo:AGENCY:save:merge rowsUpdated={} st={} ag={}", n, a.subtypeCode(), a.agencyCode()))
                 .then(findByPk(a.subtypeCode(), a.agencyCode()))
                 .doOnSuccess(x -> log.info("Repo:AGENCY:save:done st={} ag={} elapsedMs={}",

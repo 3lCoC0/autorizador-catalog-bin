@@ -31,12 +31,14 @@ public class R2dbcBinRepository implements BinRepository {
     }
 
     private static OffsetDateTime toOffset(Row row, String col) {
-        LocalDateTime ldt = row.get(col, LocalDateTime.class);
-        if (ldt != null) return ldt.atZone(ZONE).toOffsetDateTime();
+        LocalDateTime localDateTime = row.get(col, LocalDateTime.class);
+        if (localDateTime != null) {
+            return localDateTime.atZone(ZONE).toOffsetDateTime();
+        }
         return row.get(col, OffsetDateTime.class);
     }
 
-    private static final BiFunction<Row, RowMetadata, Bin> BIN_MAPPER = (row, md) ->
+    private static final BiFunction<Row, RowMetadata, Bin> BIN_MAPPER = (row, metadata) ->
             Bin.rehydrate(
                     row.get("bin", String.class),
                     row.get("name", String.class),
@@ -113,11 +115,12 @@ public class R2dbcBinRepository implements BinRepository {
                 ? spec.bind("bin_ext_digits", bin.binExtDigits())
                 : spec.bindNull("bin_ext_digits", Integer.class);
 
-        return spec.fetch().rowsUpdated()
+        return spec.fetch()
+                .rowsUpdated()
                 .doOnNext(n -> log.debug("Repo:BIN:merge rowsUpdated={} bin={}", n, bin.bin()))
                 .then(findById(bin.bin()))
                 .doOnSuccess(b -> log.info("Repo:BIN:save:done bin={} elapsedMs={}", b.bin(), ms(t0)))
-                .doOnError(e -> log.warn("Repo:BIN:save:error bin={}", bin.bin(), e)); // <-- pasa e
+                .doOnError(e -> log.warn("Repo:BIN:save:error bin={}", bin.bin(), e));
     }
 
     @Override
@@ -136,7 +139,7 @@ public class R2dbcBinRepository implements BinRepository {
                 .map(BIN_MAPPER)
                 .one()
                 .doOnSuccess(b -> log.debug("Repo:BIN:findById:hit bin={} elapsedMs={}", bin, ms(t0)))
-                .doOnError(e -> log.warn("Repo:BIN:findById:error bin={}", bin, e)); // <-- pasa e
+                .doOnError(e -> log.warn("Repo:BIN:findById:error bin={}", bin, e));
     }
 
     @Override
@@ -158,8 +161,8 @@ public class R2dbcBinRepository implements BinRepository {
                 .bind("offset", offset)
                 .bind("size", s)
                 .map(BIN_MAPPER)
-                .all() // <-- IMPORTANTE: ahora sí es Flux<Bin>
+                .all()
                 .doOnComplete(() -> log.info("Repo:BIN:findAll:done page={} size={} elapsedMs={}", p, s, ms(t0)))
-                .doOnError(e -> log.warn("Repo:BIN:findAll:error page={} size={}", p, s, e)); // <-- pasa e
+                .doOnError(e -> log.warn("Repo:BIN:findAll:error page={} size={}", p, s, e));
     }
 }
