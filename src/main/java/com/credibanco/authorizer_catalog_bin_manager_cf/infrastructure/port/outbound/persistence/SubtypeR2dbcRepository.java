@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.function.BiFunction;
+
 @Slf4j
 @Repository
 public class SubtypeR2dbcRepository implements SubtypeRepository {
@@ -24,29 +25,34 @@ public class SubtypeR2dbcRepository implements SubtypeRepository {
     public SubtypeR2dbcRepository(DatabaseClient client) {
         this.client = client;
     }
-    private static long ms(long t0) { return (System.nanoTime() - t0) / 1_000_000; }
+
+    private static long ms(long t0) {
+        return (System.nanoTime() - t0) / 1_000_000;
+    }
 
     private static OffsetDateTime toOffset(Row row, String col) {
-        LocalDateTime ldt = row.get(col, LocalDateTime.class);
-        if (ldt != null) return ldt.atZone(ZONE).toOffsetDateTime();
+        LocalDateTime localDateTime = row.get(col, LocalDateTime.class);
+        if (localDateTime != null) {
+            return localDateTime.atZone(ZONE).toOffsetDateTime();
+        }
         return row.get(col, OffsetDateTime.class);
     }
 
-    private static final BiFunction<Row, RowMetadata, Subtype> SUBTYPE_MAPPER = (row, md) ->
+    private static final BiFunction<Row, RowMetadata, Subtype> SUBTYPE_MAPPER = (row, metadata) ->
             Subtype.rehydrate(
                     row.get("subtype_code", String.class),
-                    row.get("bin",           String.class),
-                    row.get("name",          String.class),
-                    row.get("description",   String.class),
-                    row.get("status",        String.class),
+                    row.get("bin", String.class),
+                    row.get("name", String.class),
+                    row.get("description", String.class),
+                    row.get("status", String.class),
                     row.get("owner_id_type", String.class),
                     row.get("owner_id_number", String.class),
-                    row.get("bin_ext",       String.class),
-                    row.get("bin_efectivo",  String.class),
-                    row.get("subtype_id",    Long.class),
+                    row.get("bin_ext", String.class),
+                    row.get("bin_efectivo", String.class),
+                    row.get("subtype_id", Long.class),
                     toOffset(row, "created_at"),
                     toOffset(row, "updated_at"),
-                    row.get("updated_by",    String.class)
+                    row.get("updated_by", String.class)
             );
 
     @Override
@@ -60,7 +66,7 @@ public class SubtypeR2dbcRepository implements SubtypeRepository {
                 """)
                 .bind("bin", bin)
                 .bind("code", subtypeCode)
-                .map((r,m) -> 1)
+                .map((row, metadata) -> 1)
                 .first()
                 .map(x -> true)
                 .defaultIfEmpty(false)
@@ -71,7 +77,9 @@ public class SubtypeR2dbcRepository implements SubtypeRepository {
 
     @Override
     public Mono<Boolean> existsByBinAndExt(String bin, String binExt) {
-        if (binExt == null) return Mono.just(false);
+        if (binExt == null) {
+            return Mono.just(false);
+        }
         long t0 = System.nanoTime();
         log.debug("Repo:SUBTYPE:existsByBinAndExt:start bin={} ext='{}'", bin, binExt);
 
@@ -82,7 +90,7 @@ public class SubtypeR2dbcRepository implements SubtypeRepository {
                 """)
                 .bind("bin", bin)
                 .bind("ext", binExt)
-                .map((r,m) -> 1)
+                .map((row, metadata) -> 1)
                 .first()
                 .map(x -> true)
                 .defaultIfEmpty(false)
@@ -127,15 +135,27 @@ public class SubtypeR2dbcRepository implements SubtypeRepository {
                        SUBTYPE_ID, CREATED_AT, UPDATED_AT, UPDATED_BY
                   FROM SUBTYPE WHERE 1=1
                 """);
-        if (bin != null)    sb.append(" AND BIN = :bin");
-        if (code != null)   sb.append(" AND SUBTYPE_CODE = :code");
-        if (status != null) sb.append(" AND STATUS = :status");
+        if (bin != null) {
+            sb.append(" AND BIN = :bin");
+        }
+        if (code != null) {
+            sb.append(" AND SUBTYPE_CODE = :code");
+        }
+        if (status != null) {
+            sb.append(" AND STATUS = :status");
+        }
         sb.append(" ORDER BY BIN, SUBTYPE_CODE OFFSET :offset ROWS FETCH NEXT :size ROWS ONLY");
 
         var spec = client.sql(sb.toString());
-        if (bin != null)    spec = spec.bind("bin", bin);
-        if (code != null)   spec = spec.bind("code", code);
-        if (status != null) spec = spec.bind("status", status);
+        if (bin != null) {
+            spec = spec.bind("bin", bin);
+        }
+        if (code != null) {
+            spec = spec.bind("code", code);
+        }
+        if (status != null) {
+            spec = spec.bind("status", status);
+        }
 
         return spec.bind("offset", offset)
                 .bind("size", s)
@@ -189,10 +209,16 @@ public class SubtypeR2dbcRepository implements SubtypeRepository {
         spec = (e.updatedBy() != null) ? spec.bind("updated_by", e.updatedBy())
                 : spec.bindNull("updated_by", String.class);
 
-        return spec.fetch().rowsUpdated()
+        return spec.fetch()
+                .rowsUpdated()
                 .doOnNext(n -> log.debug("Repo:SUBTYPE:save:merge rowsUpdated={} bin={} code={}", n, e.bin(), e.subtypeCode()))
                 .then(findByPk(e.bin(), e.subtypeCode()))
-                .doOnSuccess(b -> log.info("Repo:SUBTYPE:save:done bin={} code={} elapsedMs={}", b.bin(), b.subtypeCode(), ms(t0)))
+                .doOnSuccess(subtype -> log.info(
+                        "Repo:SUBTYPE:save:done bin={} code={} elapsedMs={}",
+                        subtype.bin(),
+                        subtype.subtypeCode(),
+                        ms(t0)
+                ))
                 .doOnError(e2 -> log.warn("Repo:SUBTYPE:save:error bin={} code={}", e.bin(), e.subtypeCode(), e2));
     }
 }
