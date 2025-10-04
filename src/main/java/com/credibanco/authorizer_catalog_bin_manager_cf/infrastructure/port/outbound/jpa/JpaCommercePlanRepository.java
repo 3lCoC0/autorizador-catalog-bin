@@ -1,0 +1,106 @@
+package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.outbound.jpa;
+
+import com.credibanco.authorizer_catalog_bin_manager_cf.application.plan.port.outbound.CommercePlanRepository;
+import com.credibanco.authorizer_catalog_bin_manager_cf.domain.plan.CommercePlan;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.outbound.jpa.entity.CommercePlanEntity;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.outbound.jpa.mapper.CommercePlanJpaMapper;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.outbound.jpa.repository.CommercePlanJpaRepository;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
+
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.NoSuchElementException;
+import java.util.Objects;
+
+@Repository
+public class JpaCommercePlanRepository implements CommercePlanRepository {
+
+    private final CommercePlanJpaRepository repository;
+    private final TransactionTemplate txTemplate;
+
+    public JpaCommercePlanRepository(CommercePlanJpaRepository repository,
+                                     PlatformTransactionManager transactionManager) {
+        this.repository = repository;
+        this.txTemplate = new TransactionTemplate(transactionManager);
+    }
+
+    @Override
+    public Mono<Boolean> existsByCode(String planCode) {
+        return Mono.defer(() -> Mono.fromCallable(() -> repository.existsByPlanCode(planCode)))
+                .subscribeOn(Schedulers.boundedElastic());
+    }
+
+    @Override
+    public Mono<CommercePlan> findByCode(String planCode) {
+        return Mono.defer(() -> Mono.fromCallable(() -> repository.findByPlanCode(planCode)
+                        .map(CommercePlanJpaMapper::toDomain)
+                        .orElseThrow(() -> new NoSuchElementException("PLAN not found: " + planCode))))
+                .subscribeOn(Schedulers.boundedElastic());
+    }
+
+    @Override
+    public Flux<CommercePlan> findAll(String status, String q, int page, int size) {
+        return Flux.defer(() -> {
+                    Specification<CommercePlanEntity> spec = buildSpecification(status, q);
+                    int p = Math.max(0, page);
+                    int s = Math.max(1, size);
+                    List<CommercePlanEntity> content = repository.findAll(spec,
+                                    PageRequest.of(p, s, Sort.by(Sort.Order.asc("planCode"))))
+                            .getContent();
+                    return Flux.fromIterable(content).map(CommercePlanJpaMapper::toDomain);
+                })
+                .subscribeOn(Schedulers.boundedElastic());
+    }
+
+    @Override
+    public Mono<CommercePlan> save(CommercePlan plan) {
+        return Mono.defer(() -> Mono.fromCallable(() ->
+                Objects.requireNonNull(txTemplate.execute(status -> {
+                    CommercePlanEntity entity = CommercePlanJpaMapper.toEntity(plan);
+                    if (entity.getPlanId() == null) {
+                        repository.findByPlanCode(plan.code()).ifPresent(existing -> {
+                            entity.setPlanId(existing.getPlanId());
+                            if (entity.getCreatedAt() == null) {
+                                entity.setCreatedAt(existing.getCreatedAt());
+                            }
+                        });
+                    }
+                    if (entity.getCreatedAt() == null) {
+                        entity.setCreatedAt(OffsetDateTime.now());
+                    }
+                    if (entity.getUpdatedAt() == null) {
+                        entity.setUpdatedAt(OffsetDateTime.now());
+                    }
+                    CommercePlanEntity saved = repository.save(entity);
+                    return CommercePlanJpaMapper.toDomain(saved);
+                }))
+        )).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    private Specification<CommercePlanEntity> buildSpecification(String status, String search) {
+        return (root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            if (status != null) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+            if (search != null && !search.isBlank()) {
+                String pattern = "%" + search.trim().toUpperCase(Locale.ROOT) + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.upper(root.get("planCode")), pattern),
+                        cb.like(cb.upper(root.get("planName")), pattern)
+                ));
+            }
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+    }
+}
