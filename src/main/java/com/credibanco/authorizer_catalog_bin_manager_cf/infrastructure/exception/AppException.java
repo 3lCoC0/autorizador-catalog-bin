@@ -13,5 +13,4 @@ public class AppException extends RuntimeException {
         this.error = error;
     }
 
-    public AppError getError() { return error; }
 }

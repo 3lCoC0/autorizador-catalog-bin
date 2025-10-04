@@ -38,10 +38,11 @@ public class SecurityConfig {
     @Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri}")
     private String jwkSetUri;
 
+    @Value("${internal.jwt.expected-issuer}")
+    private String expectedIssuer;            // authorizer-gateway
 
-    private static final String EXPECTED_ISSUER = "authorizer-gateway";
-
-    private static final String REQUIRED_AUDIENCE = "catalog-api";
+    @Value("${internal.jwt.required-audience}")
+    private String requiredAudience;          // catalog-api
 
     @Bean
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http,
@@ -120,25 +121,26 @@ public class SecurityConfig {
     public ReactiveJwtDecoder jwtDecoder() {
         NimbusReactiveJwtDecoder decoder = NimbusReactiveJwtDecoder.withJwkSetUri(jwkSetUri).build();
 
+        OAuth2TokenValidator<Jwt> defaults = JwtValidators.createDefault(); // exp/nbf, etc.
+
+        // <<< CAMBIO CLAVE: NO usar jwt.getIssuer() >>>
         OAuth2TokenValidator<Jwt> withIssuer = jwt -> {
-            String iss = jwt.getIssuer() != null ? jwt.getIssuer().toString() : null;
-            return (EXPECTED_ISSUER.equals(iss))
+            String iss = jwt.getClaimAsString("iss");
+            return expectedIssuer.equals(iss)
                     ? OAuth2TokenValidatorResult.success()
                     : OAuth2TokenValidatorResult.failure(
                     new OAuth2Error("invalid_issuer", "Unexpected iss", null));
         };
 
         OAuth2TokenValidator<Jwt> withAudience = jwt -> {
-            List<String> aud = jwt.getAudience();
-            return (aud != null && aud.contains(REQUIRED_AUDIENCE))
+            var aud = jwt.getAudience();
+            return (aud != null && aud.contains(requiredAudience))
                     ? OAuth2TokenValidatorResult.success()
                     : OAuth2TokenValidatorResult.failure(
-                    new OAuth2Error("invalid_audience", "aud must contain " + REQUIRED_AUDIENCE, null));
+                    new OAuth2Error("invalid_audience", "aud must contain " + requiredAudience, null));
         };
 
-        decoder.setJwtValidator(
-                new DelegatingOAuth2TokenValidator<>(JwtValidators.createDefault(), withIssuer, withAudience)
-        );
+        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(defaults, withIssuer, withAudience));
         return decoder;
     }
 }
