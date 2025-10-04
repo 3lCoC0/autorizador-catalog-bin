@@ -6,7 +6,10 @@ import jakarta.validation.constraints.Size;
 
 
 public record BinCreateRequest(
-        @NotBlank @Pattern(regexp="\\d{6,9}", message="bin debe tener entre 6 y 9 dígitos") String bin,
+        @NotBlank(message = "bin es obligatorio")
+        @Size(min = 6, max = 9, message = "bin debe tener entre 6 y 9 caracteres")
+        @Pattern(regexp = "^[0-9]+$", message = "bin solo debe contener dígitos (0-9)")
+        String bin,
         @NotBlank @Size(min=3, max=120) String name,
         @NotBlank @Pattern(regexp="DEBITO|CREDITO|PREPAGO",message="typeBin debe ser DEBITO|CREDITO|PREPAGO") String typeBin,
         @NotBlank @Pattern(regexp="\\d{2}",message="typeAccount debe ser de 2 posiciones") String typeAccount,

@@ -1,5 +1,8 @@
 package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception;
 
+import lombok.Getter;
+
+@Getter
 public class AppException extends RuntimeException {
     private final AppError error;
 
@@ -13,5 +16,4 @@ public class AppException extends RuntimeException {
         this.error = error;
     }
 
-    public AppError getError() { return error; }
 }
