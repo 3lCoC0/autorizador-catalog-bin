@@ -103,13 +103,13 @@ public class JpaConfig {
         @Override
         public Mono<Void> commit(ReactiveTransaction transaction) {
             return Mono.fromRunnable(() -> delegate.commit(extractStatus(transaction)))
-                    .subscribeOn(scheduler);
+                    .subscribeOn(scheduler).then();
         }
 
         @Override
         public Mono<Void> rollback(ReactiveTransaction transaction) {
             return Mono.fromRunnable(() -> delegate.rollback(extractStatus(transaction)))
-                    .subscribeOn(scheduler);
+                    .subscribeOn(scheduler).then();
         }
 
         private TransactionStatus extractStatus(ReactiveTransaction transaction) {
