@@ -20,7 +20,9 @@ import reactor.core.publisher.Mono;
 
 import io.netty.channel.ConnectTimeoutException;
 import io.netty.handler.timeout.ReadTimeoutException;
-import io.r2dbc.spi.R2dbcTimeoutException;
+import jakarta.persistence.LockTimeoutException;
+import jakarta.persistence.QueryTimeoutException;
+import org.springframework.dao.CannotAcquireLockException;
 
 import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
@@ -210,7 +212,10 @@ public class GlobalErrorHandler implements ErrorWebExceptionHandler {
 
     private boolean isTimeout(Throwable ex) {
         return findCause(ex, TimeoutException.class) != null
-                || findCause(ex, R2dbcTimeoutException.class) != null
+                || findCause(ex, QueryTimeoutException.class) != null
+                || findCause(ex, LockTimeoutException.class) != null
+                || findCause(ex, org.springframework.dao.QueryTimeoutException.class) != null
+                || findCause(ex, CannotAcquireLockException.class) != null
                 || findCause(ex, SocketTimeoutException.class) != null
                 || findCause(ex, ReadTimeoutException.class) != null
                 || findCause(ex, ConnectTimeoutException.class) != null;
