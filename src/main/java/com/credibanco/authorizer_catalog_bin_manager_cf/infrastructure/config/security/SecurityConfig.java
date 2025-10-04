@@ -20,7 +20,9 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.oauth2.server.resource.authentication.JwtReactiveAuthenticationManager;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.authentication.AuthenticationWebFilter;
+import org.springframework.security.web.server.authentication.DelegatingServerAuthenticationConverter;
 import org.springframework.security.web.server.authentication.ServerAuthenticationConverter;
+import org.springframework.security.web.server.authentication.ServerBearerTokenAuthenticationConverter;
 import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatchers;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Mono;
@@ -71,13 +73,17 @@ public class SecurityConfig {
      */
     @Bean
     public ServerAuthenticationConverter xAuthTokenConverter() {
-        return exchange -> {
+        ServerBearerTokenAuthenticationConverter bearerConverter = new ServerBearerTokenAuthenticationConverter();
+
+        ServerAuthenticationConverter xAuthConverter = exchange -> {
             String token = exchange.getRequest().getHeaders().getFirst("X-Auth-Token");
             if (!StringUtils.hasText(token)) {
                 return Mono.empty();
             }
             return Mono.just(new BearerTokenAuthenticationToken(token));
         };
+
+        return new DelegatingServerAuthenticationConverter(xAuthConverter, bearerConverter);
     }
 
     /**
