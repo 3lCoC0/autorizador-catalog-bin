@@ -16,7 +16,6 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.Objects;
 
 @Repository
@@ -50,8 +49,8 @@ public class JpaBinRepository implements BinRepository, BinReadOnlyRepository {
     @Override
     public Mono<Bin> findById(String bin) {
         return Mono.defer(() -> Mono.fromCallable(() -> repository.findById(bin)
-                        .map(BinJpaMapper::toDomain)
-                        .orElseThrow(() -> new NoSuchElementException("BIN not found: " + bin))))
+                        .map(BinJpaMapper::toDomain)))
+                .flatMap(Mono::justOrEmpty)
                 .subscribeOn(Schedulers.boundedElastic());
     }
 
@@ -72,8 +71,8 @@ public class JpaBinRepository implements BinRepository, BinReadOnlyRepository {
     @Override
     public Mono<BinExtConfig> getExtConfig(String bin) {
         return Mono.defer(() -> Mono.fromCallable(() -> repository.findById(bin)
-                        .map(e -> new BinExtConfig(e.getUsesBinExt(), e.getBinExtDigits()))
-                        .orElseThrow(() -> new NoSuchElementException("BIN not found: " + bin))))
+                        .map(e -> new BinExtConfig(e.getUsesBinExt(), e.getBinExtDigits()))))
+                .flatMap(Mono::justOrEmpty)
                 .subscribeOn(Schedulers.boundedElastic());
     }
 }
