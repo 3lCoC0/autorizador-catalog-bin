@@ -95,36 +95,86 @@ public class JpaConfig {
         public Mono<ReactiveTransaction> getReactiveTransaction(TransactionDefinition definition) {
             TransactionDefinition txDefinition =
                     definition != null ? definition : new DefaultTransactionDefinition();
-            return Mono.fromCallable(() -> delegate.getTransaction(txDefinition))
-                    .subscribeOn(scheduler)
-                    .map(ReactiveTransactionAdapter::new);
+            return Mono.defer(() -> {
+                Scheduler.Worker worker = scheduler.createWorker();
+                return Mono.<ReactiveTransaction>create(sink -> {
+                            sink.onCancel(worker::dispose);
+                            worker.schedule(() -> {
+                                try {
+                                    TransactionStatus status = delegate.getTransaction(txDefinition);
+                                    sink.success(new ReactiveTransactionAdapter(status, worker));
+                                } catch (Throwable ex) {
+                                    worker.dispose();
+                                    sink.error(ex);
+                                }
+                            });
+                        });
+            });
         }
 
         @Override
         public Mono<Void> commit(ReactiveTransaction transaction) {
-            return Mono.fromRunnable(() -> delegate.commit(extractStatus(transaction)))
-                    .subscribeOn(scheduler).then();
+            ReactiveTransactionAdapter adapter = asAdapter(transaction);
+            return Mono.<Void>create(sink -> {
+                        sink.onCancel(adapter::disposeWorker);
+                        adapter.worker().schedule(() -> {
+                            try {
+                                delegate.commit(adapter.status());
+                                sink.success();
+                            } catch (Throwable ex) {
+                                sink.error(ex);
+                            } finally {
+                                adapter.disposeWorker();
+                            }
+                        });
+                    });
         }
 
         @Override
         public Mono<Void> rollback(ReactiveTransaction transaction) {
-            return Mono.fromRunnable(() -> delegate.rollback(extractStatus(transaction)))
-                    .subscribeOn(scheduler).then();
+            ReactiveTransactionAdapter adapter = asAdapter(transaction);
+            return Mono.<Void>create(sink -> {
+                        sink.onCancel(adapter::disposeWorker);
+                        adapter.worker().schedule(() -> {
+                            try {
+                                delegate.rollback(adapter.status());
+                                sink.success();
+                            } catch (Throwable ex) {
+                                sink.error(ex);
+                            } finally {
+                                adapter.disposeWorker();
+                            }
+                        });
+                    });
         }
 
-        private TransactionStatus extractStatus(ReactiveTransaction transaction) {
+        private ReactiveTransactionAdapter asAdapter(ReactiveTransaction transaction) {
             Assert.isInstanceOf(ReactiveTransactionAdapter.class, transaction,
                     "ReactiveTransaction must be created by ReactivePlatformTransactionManagerAdapter");
-            return ((ReactiveTransactionAdapter) transaction).status;
+            return (ReactiveTransactionAdapter) transaction;
         }
     }
 
     static final class ReactiveTransactionAdapter implements ReactiveTransaction {
 
         private final TransactionStatus status;
+        private final Scheduler.Worker worker;
 
-        ReactiveTransactionAdapter(TransactionStatus status) {
+        ReactiveTransactionAdapter(TransactionStatus status, Scheduler.Worker worker) {
             this.status = status;
+            this.worker = worker;
+        }
+
+        private TransactionStatus status() {
+            return status;
+        }
+
+        private Scheduler.Worker worker() {
+            return worker;
+        }
+
+        private void disposeWorker() {
+            worker.dispose();
         }
 
         @Override
