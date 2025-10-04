@@ -2,7 +2,6 @@ package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.out
 
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.bin.port.outbound.BinRepository;
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.subtype.port.outbound.BinReadOnlyRepository;
-import com.credibanco.authorizer_catalog_bin_manager_cf.application.subtype.port.outbound.BinReadOnlyRepository.BinExtConfig;
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.bin.Bin;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.outbound.jpa.entity.BinEntity;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.outbound.jpa.mapper.BinJpaMapper;
