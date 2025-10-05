@@ -6,7 +6,6 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.reactivestreams.Publisher;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
@@ -16,78 +15,84 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-class CreateBinServiceTest {
+class ChangeBinStatusServiceTest {
 
     private BinRepository repo;
     private TransactionalOperator txOperator;
-    private CreateBinService service;
+    private ChangeBinStatusService service;
 
     @BeforeEach
     void setUp() {
         repo = mock(BinRepository.class);
         txOperator = mock(TransactionalOperator.class);
-        service = new CreateBinService(repo, txOperator);
+        service = new ChangeBinStatusService(repo, txOperator);
 
-        when(txOperator.transactional(any(Publisher.class)))
+        when(txOperator.transactional(any(Mono.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @Test
-    void whenBinAlreadyExistsServiceEmitsAppException() {
-        String bin = "123456";
-        when(repo.existsById(bin)).thenReturn(Mono.just(true));
-
-        StepVerifier.create(service.execute(bin, "Test", "DEBITO", "01", "01", "desc", "N", null, "tester"))
+    void whenStatusInvalidReturnError() {
+        StepVerifier.create(service.execute("123456", "X", "user"))
                 .expectErrorSatisfies(error -> {
                     assertTrue(error instanceof AppException);
-                    assertEquals(AppError.BIN_ALREADY_EXISTS, ((AppException) error).getError());
+                    assertEquals(AppError.BIN_INVALID_DATA, ((AppException) error).getError());
                 })
                 .verify();
 
-        verify(repo).existsById(bin);
+        verifyNoInteractions(repo);
+    }
+
+    @Test
+    void whenBinMissingReturnNotFound() {
+        String bin = "123456";
+        when(repo.findById(bin)).thenReturn(Mono.empty());
+
+        StepVerifier.create(service.execute(bin, "A", "user"))
+                .expectErrorSatisfies(error -> {
+                    assertTrue(error instanceof AppException);
+                    assertEquals(AppError.BIN_NOT_FOUND, ((AppException) error).getError());
+                })
+                .verify();
+
+        verify(repo).findById(bin);
         verifyNoMoreInteractions(repo);
     }
 
     @Test
-    void whenBinInvalidLengthReturnAppException() {
-        StepVerifier.create(service.execute("123", "Test", "DEBITO", "01", "01", "desc", "N", null, "tester"))
-                .expectErrorSatisfies(error -> {
-                    assertTrue(error instanceof AppException);
-                    assertEquals(AppError.BIN_INVALID_DATA, ((AppException) error).getError());
-                })
-                .verify();
-
-        verifyNoInteractions(repo);
-    }
-
-    @Test
-    void whenDomainValidationFailsReturnAppException() {
-        StepVerifier.create(service.execute("123456", "Test", "DEBITO", "01", "01", "desc", "Y", null, "tester"))
-                .expectErrorSatisfies(error -> {
-                    assertTrue(error instanceof AppException);
-                    assertEquals(AppError.BIN_INVALID_DATA, ((AppException) error).getError());
-                })
-                .verify();
-
-        verifyNoInteractions(repo);
-    }
-
-    @Test
-    void whenBinValidPersistsAndReturnsSavedBin() {
+    void whenDomainRejectsStatusReturnAppException() {
         String bin = "123456";
-        when(repo.existsById(bin)).thenReturn(Mono.just(false));
+        Bin existing = Bin.createNew(bin, "name", "DEBITO", "01",
+                "01", "desc", "N", null, "creator");
+        when(repo.findById(bin)).thenReturn(Mono.just(existing));
+
+        StepVerifier.create(service.execute(bin, "a", "user"))
+                .expectErrorSatisfies(error -> {
+                    assertTrue(error instanceof AppException);
+                    assertEquals(AppError.BIN_INVALID_DATA, ((AppException) error).getError());
+                })
+                .verify();
+
+        verify(repo).findById(bin);
+        verifyNoMoreInteractions(repo);
+    }
+
+    @Test
+    void whenValidStatusPersistsUpdatedBin() {
+        String bin = "123456";
+        Bin existing = Bin.createNew(bin, "name", "DEBITO", "01",
+                "01", "desc", "N", null, "creator");
+        when(repo.findById(bin)).thenReturn(Mono.just(existing));
         when(repo.save(any(Bin.class))).thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
 
-        StepVerifier.create(service.execute(bin, "Test", "DEBITO", "01", "01", "desc", "N", null, "tester"))
-                .assertNext(saved -> {
-                    assertEquals(bin, saved.bin());
-                    assertEquals("Test", saved.name());
-                    assertEquals("DEBITO", saved.typeBin());
-                    assertEquals("N", saved.usesBinExt());
+        StepVerifier.create(service.execute(bin, "I", "user"))
+                .assertNext(updated -> {
+                    assertEquals("I", updated.status());
+                    assertEquals("user", updated.updatedBy());
                 })
                 .verifyComplete();
 
-        verify(repo).existsById(bin);
+        verify(repo).findById(bin);
         verify(repo).save(any(Bin.class));
         verifyNoMoreInteractions(repo);
     }
