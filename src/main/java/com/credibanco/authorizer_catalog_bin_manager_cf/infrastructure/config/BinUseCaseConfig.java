@@ -6,6 +6,8 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.application.bin.port.out
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.reactive.TransactionalOperator;
+import com.credibanco.authorizer_catalog_bin_manager_cf.application.bin.port.outbound.SubtypeReadOnlyRepository;
+
 
 @Configuration
 public class BinUseCaseConfig {
@@ -16,6 +18,6 @@ public class BinUseCaseConfig {
     ListBinsUseCase listBinsUseCase(BinRepository repo) { return new ListBinsService(repo); }
     @Bean public CreateBinUseCase createBinUseCase(BinRepository repo, TransactionalOperator tx) { return new CreateBinService(repo, tx); }
     @Bean public ChangeBinStatusUseCase changeBinStatusUseCase(BinRepository repo, TransactionalOperator tx) { return new ChangeBinStatusService(repo, tx); }
-    @Bean public UpdateBinUseCase updateBinUseCase(BinRepository repo, TransactionalOperator tx) { return new UpdateBinService(repo, tx); }
+    @Bean public UpdateBinUseCase updateBinUseCase(BinRepository repo, SubtypeReadOnlyRepository subtypeRepo, TransactionalOperator tx) { return new UpdateBinService(repo, subtypeRepo, tx); }
 
 }

@@ -25,9 +25,12 @@ public class SubtypeUseCaseConfig {
 
     @Bean
     public UpdateSubtypeBasicsUseCase updateSubtypeBasicsUseCase(
-            SubtypeRepository repo, BinReadOnlyRepository binRepo, TransactionalOperator tx
+            SubtypeRepository repo,
+            BinReadOnlyRepository binRepo,
+            IdTypeReadOnlyRepository idTypeRepo,
+            TransactionalOperator tx
     ) {
-        return new UpdateSubtypeBasicsService(repo, binRepo, tx);
+        return new UpdateSubtypeBasicsService(repo, binRepo, idTypeRepo, tx);
     }
     @Bean
     public ChangeSubtypeStatusUseCase changeSubtypeStatusUseCase(

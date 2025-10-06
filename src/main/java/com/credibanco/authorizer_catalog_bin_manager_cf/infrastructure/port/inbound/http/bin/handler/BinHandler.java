@@ -46,7 +46,7 @@ public class BinHandler {
             if (baseLen + extDigits > 9) {
                 return Mono.error(new AppException(
                         AppError.BIN_EXT_TOTAL_LENGTH_OVERFLOW,
-                        "bin + extensión no puede exceder 9 dígitos"
+                        "La combinacion de bin + binExtDigits no puede exceder 9 dígitos"
                 ));
             }
         } else {
@@ -93,8 +93,8 @@ public class BinHandler {
 
     public Mono<ServerResponse> list(ServerRequest req) {
         long t0 = System.nanoTime();
-        int page = req.queryParam("page").map(Integer::parseInt).orElse(0);
-        int size = req.queryParam("size").map(Integer::parseInt).orElse(20);
+        int page = parseIntQueryParam(req, "page", 0);
+        int size = parseIntQueryParam(req, "size", 20);
         log.info("BIN:list:recv page={}, size={}", page, size);
         return listUC.execute(page, size)
                 .map(this::toResponse)
@@ -134,7 +134,12 @@ public class BinHandler {
 
     public Mono<ServerResponse> get(ServerRequest req) {
         long t0 = System.nanoTime();
-        String bin = req.pathVariable("bin");
+        final String bin = req.pathVariable("bin");
+        if (!bin.chars().allMatch(Character::isDigit) || bin.length() < 6 || bin.length() > 9) {
+            log.warn("BIN:get:invalid path bin='{}'", bin);
+            return Mono.error(new AppException(AppError.BIN_INVALID_DATA,
+                    "El path variable 'bin' debe ser numérico de 6 a 9 dígitos"));
+        }
         return getUC.execute(bin)
                 .doOnSubscribe(s -> log.info("BIN:get:recv bin={}", bin))
                 .doOnSuccess(b -> log.info("BIN:get:done bin={}, status={}, elapsedMs={}",
@@ -144,9 +149,15 @@ public class BinHandler {
     }
 
 
+
     public Mono<ServerResponse> changeStatus(ServerRequest req) {
         long t0 = System.nanoTime();
-        String bin = req.pathVariable("bin");
+        final String bin = req.pathVariable("bin");
+        if (!bin.chars().allMatch(Character::isDigit) || bin.length() < 6 || bin.length() > 9) {
+            log.warn("BIN:changeStatus:invalid path bin='{}'", bin);
+            return Mono.error(new AppException(AppError.BIN_INVALID_DATA,
+                    "El path variable 'bin' debe ser numérico de 6 a 9 dígitos"));
+        }
         return req.bodyToMono(BinStatusUpdateRequest.class)
                 .doOnSubscribe(s -> log.info("BIN:status:recv bin={}", bin))
                 .flatMap(r -> validation.validate(r, AppError.BIN_INVALID_DATA))
@@ -162,6 +173,21 @@ public class BinHandler {
     private String resolveUser(ServerRequest req, String fromBody) {
         String hdr = req.headers().firstHeader("X-User");
         return StringUtils.hasText(fromBody) ? fromBody
-                : (StringUtils.hasText(hdr) ? hdr : null); // opcional
+                : (StringUtils.hasText(hdr) ? hdr : null);
+    }
+
+    private int parseIntQueryParam(ServerRequest req, String name, int defaultValue) {
+        return req.queryParam(name)
+                .map(raw -> {
+                    try {
+                        return Integer.parseInt(raw);
+                    } catch (NumberFormatException ex) {
+                        throw new AppException(
+                                AppError.BIN_INVALID_DATA,
+                                "El parámetro '" + name + "' debe ser un número entero válido"
+                        );
+                    }
+                })
+                .orElse(defaultValue);
     }
 }
