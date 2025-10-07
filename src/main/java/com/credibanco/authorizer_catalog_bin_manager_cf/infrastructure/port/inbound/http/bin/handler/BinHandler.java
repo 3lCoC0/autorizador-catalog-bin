@@ -5,12 +5,12 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.config.ht
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppError;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppException;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.bin.dto.*;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.common.RequestActorResolver;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.validation.ValidationUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
@@ -28,6 +28,7 @@ public class BinHandler {
     private final UpdateBinUseCase updateUC;
     private final GetBinUseCase getUC;
     private final ChangeBinStatusUseCase changeStatusUC;
+    private final RequestActorResolver actorResolver;
 
 
     private static long elapsedMs(long t0) { return (System.nanoTime() - t0) / 1_000_000; }
@@ -77,11 +78,13 @@ public class BinHandler {
                 .flatMap(r -> checkExtConstraints(r.bin(), r.usesBinExt(), r.binExtDigits())
                         .onErrorMap(IllegalArgumentException.class,
                                 e -> new AppException(AppError.BIN_INVALID_DATA, e.getMessage()))
-                        .then(createUC.execute(
-                                r.bin(), r.name(), r.typeBin(), r.typeAccount(),
-                                r.compensationCod(), r.description(),
-                                r.usesBinExt(), r.binExtDigits(),
-                                r.createdBy())))
+                        .then(actorResolver.resolve(req, r.createdBy(), "bin.create")
+                                .flatMap(resolution -> createUC.execute(
+                                        r.bin(), r.name(), r.typeBin(), r.typeAccount(),
+                                        r.compensationCod(), r.description(),
+                                        r.usesBinExt(), r.binExtDigits(),
+                                        resolution.actorOrNull())))
+                )
                 .doOnSuccess(b -> log.info("BIN:create:done bin={}, status={}, elapsedMs={}",
                         b.bin(), b.status(), elapsedMs(t0)))
                 .map(this::toResponse)
@@ -113,16 +116,16 @@ public class BinHandler {
                     log.debug("BIN:update:validated bin={}, usesExt={}, extDigits={}",
                             r.bin(), r.usesBinExt(), r.binExtDigits());
 
-                    String by = resolveUser(req, r.updatedBy());
-                    return checkExtConstraints(r.bin(), r.usesBinExt(), r.binExtDigits())
-                            .onErrorMap(IllegalArgumentException.class,
-                                    e -> new AppException(AppError.BIN_INVALID_DATA, e.getMessage()))
-                            .then(updateUC.execute(
-                                    r.bin(), r.name(), r.typeBin(), r.typeAccount(),
-                                    r.compensationCod(), r.description(),
-                                    r.usesBinExt(), r.binExtDigits(),
-                                    by
-                            ));
+                    return actorResolver.resolve(req, r.updatedBy(), "bin.update")
+                            .flatMap(resolution -> checkExtConstraints(r.bin(), r.usesBinExt(), r.binExtDigits())
+                                    .onErrorMap(IllegalArgumentException.class,
+                                            e -> new AppException(AppError.BIN_INVALID_DATA, e.getMessage()))
+                                    .then(updateUC.execute(
+                                            r.bin(), r.name(), r.typeBin(), r.typeAccount(),
+                                            r.compensationCod(), r.description(),
+                                            r.usesBinExt(), r.binExtDigits(),
+                                            resolution.actorOrNull()
+                                    )));
                 })
                 .doOnSuccess(b -> log.info("BIN:update:done bin={}, status={}, elapsedMs={}",
                         b.bin(), b.status(), elapsedMs(t0)))
@@ -161,7 +164,8 @@ public class BinHandler {
         return req.bodyToMono(BinStatusUpdateRequest.class)
                 .doOnSubscribe(s -> log.info("BIN:status:recv bin={}", bin))
                 .flatMap(r -> validation.validate(r, AppError.BIN_INVALID_DATA))
-                .flatMap(r -> changeStatusUC.execute(bin, r.status(), r.updatedBy()))
+                .flatMap(r -> actorResolver.resolve(req, r.updatedBy(), "bin.changeStatus")
+                        .flatMap(resolution -> changeStatusUC.execute(bin, r.status(), resolution.actorOrNull())))
                 .doOnSuccess(b -> log.info("BIN:status:done bin={}, newStatus={}, elapsedMs={}",
                         b.bin(), b.status(), elapsedMs(t0)))
                 .map(this::toResponse)
@@ -169,12 +173,6 @@ public class BinHandler {
                         .bodyValue(okEnvelope(req, "Se cambio el STATUS del bin correctamente", body)));
     }
 
-
-    private String resolveUser(ServerRequest req, String fromBody) {
-        String hdr = req.headers().firstHeader("X-User");
-        return StringUtils.hasText(fromBody) ? fromBody
-                : (StringUtils.hasText(hdr) ? hdr : null);
-    }
 
     private int parseIntQueryParam(ServerRequest req, String name, int defaultValue) {
         return req.queryParam(name)

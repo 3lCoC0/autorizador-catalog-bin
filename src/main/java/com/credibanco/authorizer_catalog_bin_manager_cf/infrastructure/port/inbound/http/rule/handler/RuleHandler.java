@@ -6,6 +6,7 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule.Validation;
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule.ValidationMap;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppError;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.rule.dto.*;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.common.RequestActorResolver;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.validation.ValidationUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,7 +17,6 @@ import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
-
 import static com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.config.http.ApiResponses.*;
 
 @Slf4j
@@ -31,6 +31,7 @@ public class RuleHandler {
     private final MapRuleUseCase mapRuleUC;
     private final ListRulesForSubtypeUseCase listRulesUC;
     private final ValidationUtil validation;
+    private final RequestActorResolver actorResolver;
 
     private static long ms(long t0) { return (System.nanoTime() - t0) / 1_000_000; }
 
@@ -40,7 +41,9 @@ public class RuleHandler {
                 .doOnSubscribe(s -> log.info("RULES:validation:create:recv"))
                 // ✅ nuevo validador con código "11"
                 .flatMap(r -> validation.validate(r, AppError.RULES_VALIDATION_INVALID_DATA))
-                .flatMap(r -> createV.execute(r.code(), r.description(), r.dataType(), r.createdBy()))
+                .flatMap(r -> actorResolver.resolve(req, r.createdBy(), "rules.validation.create")
+                        .flatMap(resolution -> createV.execute(r.code(), r.description(), r.dataType(),
+                                resolution.actorOrNull())))
                 .map(this::toResp)
                 .doOnSuccess(v -> log.info("RULES:validation:create:done code={} elapsedMs={}", v.code(), ms(t0)))
                 .flatMap(resp -> ServerResponse.created(req.uriBuilder().path("/{code}").build(resp.code()))
@@ -56,7 +59,9 @@ public class RuleHandler {
                 .doOnSubscribe(s -> log.info("RULES:validation:update:recv code={}", code))
                 // ✅ "11"
                 .flatMap(r -> validation.validate(r, AppError.RULES_VALIDATION_INVALID_DATA))
-                .flatMap(r -> updateV.execute(code, r.description(), r.updatedBy()))
+                .flatMap(r -> actorResolver.resolve(req, r.updatedBy(), "rules.validation.update")
+                        .flatMap(resolution -> updateV.execute(code, r.description(),
+                                resolution.actorOrNull())))
                 .map(this::toResp)
                 .doOnSuccess(v -> log.info("RULES:validation:update:done code={} elapsedMs={}", v.code(), ms(t0)))
                 .flatMap(resp -> ServerResponse.ok()
@@ -72,7 +77,9 @@ public class RuleHandler {
                 .doOnSubscribe(s -> log.info("RULES:validation:status:recv code={}", code))
                 // ✅ "11"
                 .flatMap(r -> validation.validate(r, AppError.RULES_VALIDATION_INVALID_DATA))
-                .flatMap(r -> changeVStatus.execute(code, r.status(), r.updatedBy()))
+                .flatMap(r -> actorResolver.resolve(req, r.updatedBy(), "rules.validation.changeStatus")
+                        .flatMap(resolution -> changeVStatus.execute(code, r.status(),
+                                resolution.actorOrNull())))
                 .map(this::toResp)
                 .doOnSuccess(v -> log.info("RULES:validation:status:done code={} newStatus={} elapsedMs={}",
                         v.code(), v.status(), ms(t0)))
@@ -111,7 +118,9 @@ public class RuleHandler {
                 .doOnSubscribe(s -> log.info("RULES:map:attach:recv"))
                 // ✅ "14"
                 .flatMap(r -> validation.validate(r, AppError.RULES_MAP_INVALID_DATA))
-                .flatMap(r -> mapRuleUC.attach(r.subtypeCode(), r.bin(), r.code(), r.value(), r.updatedBy()))
+                .flatMap(r -> actorResolver.resolve(req, r.updatedBy(), "rules.map.attach")
+                        .flatMap(resolution -> mapRuleUC.attach(r.subtypeCode(), r.bin(), r.code(), r.value(),
+                                resolution.actorOrNull())))
                 .map(this::toMapResp)
                 .doOnSuccess(m -> log.info("RULES:map:attach:done st={} bin={} valId={} elapsedMs={}",
                         m.subtypeCode(), m.bin(), m.validationId(), ms(t0)))
@@ -130,7 +139,9 @@ public class RuleHandler {
                 .doOnSubscribe(s -> log.info("RULES:map:status:recv st={} bin={} code={}", st, bin, code))
                 // ✅ "14"
                 .flatMap(r -> validation.validate(r, AppError.RULES_MAP_INVALID_DATA))
-                .flatMap(r -> mapRuleUC.changeStatus(st, bin, code, r.status(), r.updatedBy()))
+                .flatMap(r -> actorResolver.resolve(req, r.updatedBy(), "rules.map.changeStatus")
+                        .flatMap(resolution -> mapRuleUC.changeStatus(st, bin, code, r.status(),
+                                resolution.actorOrNull())))
                 .map(this::toMapResp)
                 .doOnSuccess(m -> log.info("RULES:map:status:done st={} bin={} valId={} newStatus={} elapsedMs={}",
                         m.subtypeCode(), m.bin(), m.validationId(), m.status(), ms(t0)))
@@ -202,7 +213,6 @@ public class RuleHandler {
         // Cuando sí hay elementos, un detalle neutro
         return "Operación exitosa";
     }
-
     private ValidationResponse toResp(Validation v) {
         return new ValidationResponse(
                 v.validationId(), v.code(), v.description(), v.dataType(),

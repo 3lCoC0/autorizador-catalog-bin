@@ -5,6 +5,7 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.application.subtype.port
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppError;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppException;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.subtype.dto.*;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.common.RequestActorResolver;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.validation.ValidationUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,14 +27,9 @@ public class SubtypeHandler {
     private final UpdateSubtypeBasicsUseCase updateUC;
     private final GetSubtypeUseCase getUC;
     private final ChangeSubtypeStatusUseCase changeStatusUC;
+    private final RequestActorResolver actorResolver;
     private static long elapsedMs(long t0) { return (System.nanoTime() - t0) / 1_000_000; }
 
-    private String resolveUser(ServerRequest req, String fromBody) {
-        String hdr = req.headers().firstHeader("X-User");
-        return (fromBody != null && !fromBody.isBlank())
-                ? fromBody
-                : (hdr != null && !hdr.isBlank() ? hdr : null);
-    }
 
     private SubtypeResponse toResponse(com.credibanco.authorizer_catalog_bin_manager_cf.domain.subtype.Subtype s) {
         return new SubtypeResponse(
@@ -50,16 +46,17 @@ public class SubtypeHandler {
         long t0 = System.nanoTime();
         return req.bodyToMono(SubtypeCreateRequest.class)
                 .doOnSubscribe(s -> log.info("SUBTYPE:create:recv"))
-                .flatMap(r -> validation.validate(r, AppError.SUBTYPE_INVALID_DATA))
-                .flatMap(r -> {
-                    log.debug("SUBTYPE:create:validated bin={} code={} ownerType={} ext='{}'",
-                            r.bin(), r.subtypeCode(), r.ownerIdType(), r.binExt());
-                    return createUC.execute(
-                            r.subtypeCode(), r.bin(), r.name(), r.description(),
-                            r.ownerIdType(), r.ownerIdNumber(), r.binExt(),
-                            resolveUser(req, r.createdBy())
-                    );
-                })
+                .flatMap(r -> validation.validate(r, AppError.SUBTYPE_INVALID_DATA)
+                        .flatMap(valid -> {
+                            log.debug("SUBTYPE:create:validated bin={} code={} ownerType={} ext='{}'",
+                                    valid.bin(), valid.subtypeCode(), valid.ownerIdType(), valid.binExt());
+                            return actorResolver.resolve(req, valid.createdBy(), "subtype.create")
+                                    .flatMap(resolution -> createUC.execute(
+                                            valid.subtypeCode(), valid.bin(), valid.name(), valid.description(),
+                                            valid.ownerIdType(), valid.ownerIdNumber(), valid.binExt(),
+                                            resolution.actorOrNull()
+                                    ));
+                        }))
                 .map(this::toResponse)
                 .doOnSuccess(b -> log.info("SUBTYPE:create:done bin={} code={} status={} elapsedMs={}",
                         b.bin(), b.subtypeCode(), b.status(), elapsedMs(t0)))
@@ -98,15 +95,16 @@ public class SubtypeHandler {
 
         return req.bodyToMono(SubtypeUpdateRequest.class)
                 .doOnSubscribe(s -> log.info("SUBTYPE:update:recv bin={} code={}", bin, code))
-                .flatMap(r -> validation.validate(r, AppError.SUBTYPE_INVALID_DATA))
-                .flatMap(r -> {
-                    log.debug("SUBTYPE:update:validated bin={} code={} ext='{}'", bin, code, r.binExt());
-                    return updateUC.execute(
-                            bin, code, r.name(), r.description(),
-                            r.ownerIdType(), r.ownerIdNumber(), r.binExt(),
-                            resolveUser(req, r.updatedBy()) // opcional
-                    );
-                })
+                .flatMap(r -> validation.validate(r, AppError.SUBTYPE_INVALID_DATA)
+                        .flatMap(valid -> {
+                            log.debug("SUBTYPE:update:validated bin={} code={} ext='{}'", bin, code, valid.binExt());
+                            return actorResolver.resolve(req, valid.updatedBy(), "subtype.update")
+                                    .flatMap(resolution -> updateUC.execute(
+                                            bin, code, valid.name(), valid.description(),
+                                            valid.ownerIdType(), valid.ownerIdNumber(), valid.binExt(),
+                                            resolution.actorOrNull()
+                                    ));
+                        }))
                 .map(this::toResponse)
                 .doOnSuccess(b -> log.info("SUBTYPE:update:done bin={} code={} elapsedMs={}",
                         b.bin(), b.subtypeCode(), elapsedMs(t0)))
@@ -138,8 +136,9 @@ public class SubtypeHandler {
         return req.bodyToMono(SubtypeStatusRequest.class)
                 .doOnSubscribe(s -> log.info("SUBTYPE:status:recv bin={} code={}", bin, code))
 
-                .flatMap(r -> validation.validate(r, AppError.SUBTYPE_INVALID_DATA))
-                .flatMap(r -> changeStatusUC.execute(bin, code, r.status(), resolveUser(req, r.updatedBy())))
+                .flatMap(r -> validation.validate(r, AppError.SUBTYPE_INVALID_DATA)
+                        .flatMap(valid -> actorResolver.resolve(req, valid.updatedBy(), "subtype.changeStatus")
+                                .flatMap(resolution -> changeStatusUC.execute(bin, code, valid.status(), resolution.actorOrNull()))))
                 .map(this::toResponse)
                 .doOnSuccess(b -> log.info("SUBTYPE:status:done bin={} code={} newStatus={} elapsedMs={}",
                         b.bin(), b.subtypeCode(), b.status(), elapsedMs(t0)))
