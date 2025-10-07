@@ -4,6 +4,7 @@ package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inb
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.rule.port.inbound.*;
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule.Validation;
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule.ValidationMap;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.config.security.ActorProvider;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppError;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.rule.dto.*;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.common.RequestActorResolver;
@@ -31,7 +32,7 @@ public class RuleHandler {
     private final MapRuleUseCase mapRuleUC;
     private final ListRulesForSubtypeUseCase listRulesUC;
     private final ValidationUtil validation;
-    private final RequestActorResolver actorResolver;
+    private final ActorProvider actorProvider;
 
     private static long ms(long t0) { return (System.nanoTime() - t0) / 1_000_000; }
 
@@ -41,9 +42,12 @@ public class RuleHandler {
                 .doOnSubscribe(s -> log.info("RULES:validation:create:recv"))
                 // ✅ nuevo validador con código "11"
                 .flatMap(r -> validation.validate(r, AppError.RULES_VALIDATION_INVALID_DATA))
-                .flatMap(r -> actorResolver.resolve(req, r.createdBy(), "rules.validation.create")
-                        .flatMap(resolution -> createV.execute(r.code(), r.description(), r.dataType(),
-                                resolution.actorOrNull())))
+                .flatMap(r -> resolveUser(req, r.createdBy(), "rules.validation.create")
+                        .defaultIfEmpty("")
+                        .flatMap(user -> {
+                            log.info("rules.validation.create - actor used={}", printableActor(user));
+                            return createV.execute(r.code(), r.description(), r.dataType(), toNullable(user));
+                        }))
                 .map(this::toResp)
                 .doOnSuccess(v -> log.info("RULES:validation:create:done code={} elapsedMs={}", v.code(), ms(t0)))
                 .flatMap(resp -> ServerResponse.created(req.uriBuilder().path("/{code}").build(resp.code()))
@@ -59,9 +63,12 @@ public class RuleHandler {
                 .doOnSubscribe(s -> log.info("RULES:validation:update:recv code={}", code))
                 // ✅ "11"
                 .flatMap(r -> validation.validate(r, AppError.RULES_VALIDATION_INVALID_DATA))
-                .flatMap(r -> actorResolver.resolve(req, r.updatedBy(), "rules.validation.update")
-                        .flatMap(resolution -> updateV.execute(code, r.description(),
-                                resolution.actorOrNull())))
+                .flatMap(r -> resolveUser(req, r.updatedBy(), "rules.validation.update")
+                        .defaultIfEmpty("")
+                        .flatMap(user -> {
+                            log.info("rules.validation.update - actor used={}", printableActor(user));
+                            return updateV.execute(code, r.description(), toNullable(user));
+                        }))
                 .map(this::toResp)
                 .doOnSuccess(v -> log.info("RULES:validation:update:done code={} elapsedMs={}", v.code(), ms(t0)))
                 .flatMap(resp -> ServerResponse.ok()
@@ -77,9 +84,12 @@ public class RuleHandler {
                 .doOnSubscribe(s -> log.info("RULES:validation:status:recv code={}", code))
                 // ✅ "11"
                 .flatMap(r -> validation.validate(r, AppError.RULES_VALIDATION_INVALID_DATA))
-                .flatMap(r -> actorResolver.resolve(req, r.updatedBy(), "rules.validation.changeStatus")
-                        .flatMap(resolution -> changeVStatus.execute(code, r.status(),
-                                resolution.actorOrNull())))
+                .flatMap(r -> resolveUser(req, r.updatedBy(), "rules.validation.changeStatus")
+                        .defaultIfEmpty("")
+                        .flatMap(user -> {
+                            log.info("rules.validation.changeStatus - actor used={}", printableActor(user));
+                            return changeVStatus.execute(code, r.status(), toNullable(user));
+                        }))
                 .map(this::toResp)
                 .doOnSuccess(v -> log.info("RULES:validation:status:done code={} newStatus={} elapsedMs={}",
                         v.code(), v.status(), ms(t0)))
@@ -118,9 +128,12 @@ public class RuleHandler {
                 .doOnSubscribe(s -> log.info("RULES:map:attach:recv"))
                 // ✅ "14"
                 .flatMap(r -> validation.validate(r, AppError.RULES_MAP_INVALID_DATA))
-                .flatMap(r -> actorResolver.resolve(req, r.updatedBy(), "rules.map.attach")
-                        .flatMap(resolution -> mapRuleUC.attach(r.subtypeCode(), r.bin(), r.code(), r.value(),
-                                resolution.actorOrNull())))
+                .flatMap(r -> resolveUser(req, r.updatedBy(), "rules.map.attach")
+                        .defaultIfEmpty("")
+                        .flatMap(user -> {
+                            log.info("rules.map.attach - actor used={}", printableActor(user));
+                            return mapRuleUC.attach(r.subtypeCode(), r.bin(), r.code(), r.value(), toNullable(user));
+                        }))
                 .map(this::toMapResp)
                 .doOnSuccess(m -> log.info("RULES:map:attach:done st={} bin={} valId={} elapsedMs={}",
                         m.subtypeCode(), m.bin(), m.validationId(), ms(t0)))
@@ -139,9 +152,12 @@ public class RuleHandler {
                 .doOnSubscribe(s -> log.info("RULES:map:status:recv st={} bin={} code={}", st, bin, code))
                 // ✅ "14"
                 .flatMap(r -> validation.validate(r, AppError.RULES_MAP_INVALID_DATA))
-                .flatMap(r -> actorResolver.resolve(req, r.updatedBy(), "rules.map.changeStatus")
-                        .flatMap(resolution -> mapRuleUC.changeStatus(st, bin, code, r.status(),
-                                resolution.actorOrNull())))
+                .flatMap(r -> resolveUser(req, r.updatedBy(), "rules.map.changeStatus")
+                        .defaultIfEmpty("")
+                        .flatMap(user -> {
+                            log.info("rules.map.changeStatus - actor used={}", printableActor(user));
+                            return mapRuleUC.changeStatus(st, bin, code, r.status(), toNullable(user));
+                        }))
                 .map(this::toMapResp)
                 .doOnSuccess(m -> log.info("RULES:map:status:done st={} bin={} valId={} newStatus={} elapsedMs={}",
                         m.subtypeCode(), m.bin(), m.validationId(), m.status(), ms(t0)))
@@ -213,6 +229,38 @@ public class RuleHandler {
         // Cuando sí hay elementos, un detalle neutro
         return "Operación exitosa";
     }
+
+    private Mono<String> resolveUser(ServerRequest req, String fromBody, String operation) {
+        return Mono.defer(() -> {
+                    String fromRequest = toNullable(fromBody);
+                    if (fromRequest != null) {
+                        log.debug("{} - actor from request body: {}", operation, fromRequest);
+                        return Mono.just(fromRequest);
+                    }
+                    return Mono.empty();
+                })
+                .switchIfEmpty(Mono.defer(() -> {
+                    String headerUser = toNullable(req.headers().firstHeader("X-User"));
+                    if (headerUser != null) {
+                        log.info("{} - actor from header X-User: {}", operation, headerUser);
+                        return Mono.just(headerUser);
+                    }
+                    return Mono.empty();
+                }))
+                .switchIfEmpty(actorProvider.currentUserId()
+                        .map(String::trim)
+                        .filter(s -> !s.isBlank())
+                        .doOnNext(user -> log.info("{} - actor from security context: {}", operation, user)));
+    }
+
+    private String printableActor(String user) {
+        return (user == null || user.isBlank()) ? "<none>" : user;
+    }
+
+    private String toNullable(String value) {
+        return (value != null && !value.isBlank()) ? value : null;
+    }
+
     private ValidationResponse toResp(Validation v) {
         return new ValidationResponse(
                 v.validationId(), v.code(), v.description(), v.dataType(),

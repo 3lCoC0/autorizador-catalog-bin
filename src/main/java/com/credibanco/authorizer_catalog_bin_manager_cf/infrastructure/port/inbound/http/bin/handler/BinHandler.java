@@ -2,6 +2,7 @@ package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inb
 
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.bin.port.inbound.*;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.config.http.ApiResponses;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.config.security.ActorProvider;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppError;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppException;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.bin.dto.*;
@@ -28,7 +29,7 @@ public class BinHandler {
     private final UpdateBinUseCase updateUC;
     private final GetBinUseCase getUC;
     private final ChangeBinStatusUseCase changeStatusUC;
-    private final RequestActorResolver actorResolver;
+    private final ActorProvider actorProvider;
 
 
     private static long elapsedMs(long t0) { return (System.nanoTime() - t0) / 1_000_000; }
@@ -78,12 +79,16 @@ public class BinHandler {
                 .flatMap(r -> checkExtConstraints(r.bin(), r.usesBinExt(), r.binExtDigits())
                         .onErrorMap(IllegalArgumentException.class,
                                 e -> new AppException(AppError.BIN_INVALID_DATA, e.getMessage()))
-                        .then(actorResolver.resolve(req, r.createdBy(), "bin.create")
-                                .flatMap(resolution -> createUC.execute(
-                                        r.bin(), r.name(), r.typeBin(), r.typeAccount(),
-                                        r.compensationCod(), r.description(),
-                                        r.usesBinExt(), r.binExtDigits(),
-                                        resolution.actorOrNull())))
+                        .then(resolveUser(req, r.createdBy(), "bin.create")
+                                .defaultIfEmpty("")
+                                .flatMap(user -> {
+                                    log.info("bin.create - actor used={}", printableActor(user));
+                                    return createUC.execute(
+                                            r.bin(), r.name(), r.typeBin(), r.typeAccount(),
+                                            r.compensationCod(), r.description(),
+                                            r.usesBinExt(), r.binExtDigits(),
+                                            toNullable(user));
+                                }))
                 )
                 .doOnSuccess(b -> log.info("BIN:create:done bin={}, status={}, elapsedMs={}",
                         b.bin(), b.status(), elapsedMs(t0)))
@@ -116,16 +121,20 @@ public class BinHandler {
                     log.debug("BIN:update:validated bin={}, usesExt={}, extDigits={}",
                             r.bin(), r.usesBinExt(), r.binExtDigits());
 
-                    return actorResolver.resolve(req, r.updatedBy(), "bin.update")
-                            .flatMap(resolution -> checkExtConstraints(r.bin(), r.usesBinExt(), r.binExtDigits())
+                    return resolveUser(req, r.updatedBy(), "bin.update")
+                            .defaultIfEmpty("")
+                            .flatMap(user -> {
+                                log.info("bin.update - actor used={}", printableActor(user));
+                                return checkExtConstraints(r.bin(), r.usesBinExt(), r.binExtDigits())
                                     .onErrorMap(IllegalArgumentException.class,
                                             e -> new AppException(AppError.BIN_INVALID_DATA, e.getMessage()))
                                     .then(updateUC.execute(
                                             r.bin(), r.name(), r.typeBin(), r.typeAccount(),
                                             r.compensationCod(), r.description(),
                                             r.usesBinExt(), r.binExtDigits(),
-                                            resolution.actorOrNull()
-                                    )));
+                                            toNullable(user)
+                                    ));
+                            });
                 })
                 .doOnSuccess(b -> log.info("BIN:update:done bin={}, status={}, elapsedMs={}",
                         b.bin(), b.status(), elapsedMs(t0)))
@@ -164,8 +173,12 @@ public class BinHandler {
         return req.bodyToMono(BinStatusUpdateRequest.class)
                 .doOnSubscribe(s -> log.info("BIN:status:recv bin={}", bin))
                 .flatMap(r -> validation.validate(r, AppError.BIN_INVALID_DATA))
-                .flatMap(r -> actorResolver.resolve(req, r.updatedBy(), "bin.changeStatus")
-                        .flatMap(resolution -> changeStatusUC.execute(bin, r.status(), resolution.actorOrNull())))
+                .flatMap(r -> resolveUser(req, r.updatedBy(), "bin.changeStatus")
+                        .defaultIfEmpty("")
+                        .flatMap(user -> {
+                            log.info("bin.changeStatus - actor used={}", printableActor(user));
+                            return changeStatusUC.execute(bin, r.status(), toNullable(user));
+                        }))
                 .doOnSuccess(b -> log.info("BIN:status:done bin={}, newStatus={}, elapsedMs={}",
                         b.bin(), b.status(), elapsedMs(t0)))
                 .map(this::toResponse)
@@ -173,6 +186,37 @@ public class BinHandler {
                         .bodyValue(okEnvelope(req, "Se cambio el STATUS del bin correctamente", body)));
     }
 
+
+    private Mono<String> resolveUser(ServerRequest req, String fromBody, String operation) {
+        return Mono.defer(() -> {
+                    String fromRequest = toNullable(fromBody);
+                    if (StringUtils.hasText(fromRequest)) {
+                        log.debug("{} - actor from request body: {}", operation, fromRequest);
+                        return Mono.just(fromRequest);
+                    }
+                    return Mono.empty();
+                })
+                .switchIfEmpty(Mono.defer(() -> {
+                    String headerUser = toNullable(req.headers().firstHeader("X-User"));
+                    if (StringUtils.hasText(headerUser)) {
+                        log.info("{} - actor from header X-User: {}", operation, headerUser);
+                        return Mono.just(headerUser);
+                    }
+                    return Mono.empty();
+                }))
+                .switchIfEmpty(actorProvider.currentUserId()
+                        .map(String::trim)
+                        .filter(StringUtils::hasText)
+                        .doOnNext(user -> log.info("{} - actor from security context: {}", operation, user)));
+    }
+
+    private String printableActor(String actor) {
+        return StringUtils.hasText(actor) ? actor : "<none>";
+    }
+
+    private String toNullable(String value) {
+        return StringUtils.hasText(value) ? value : null;
+    }
 
     private int parseIntQueryParam(ServerRequest req, String name, int defaultValue) {
         return req.queryParam(name)

@@ -149,4 +149,6 @@ public class SecurityConfig {
         decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(defaults, withIssuer, withAudience));
         return decoder;
     }
+
+    
 }
