@@ -16,14 +16,14 @@ public class RequestActorResolver {
     private final ActorProvider actorProvider;
 
     public Mono<ActorResolution> resolve(ServerRequest request, String bodyUser, String operation) {
-        return resolve(request, operation, bodyUser);
+        return resolveCandidate(request, operation, bodyUser);
     }
 
     public Mono<ActorResolution> resolve(ServerRequest request, String operation) {
-        return resolve(request, operation, null);
+        return resolveCandidate(request, operation, null);
     }
 
-    private Mono<ActorResolution> resolve(ServerRequest request, String operation, String candidate) {
+    private Mono<ActorResolution> resolveCandidate(ServerRequest request, String operation, String candidate) {
         return Mono.defer(() -> Mono.justOrEmpty(normalize(candidate))
                         .map(ActorResolution::fromBody)
                         .switchIfEmpty(Mono.justOrEmpty(normalize(request.headers().firstHeader("X-User")))
