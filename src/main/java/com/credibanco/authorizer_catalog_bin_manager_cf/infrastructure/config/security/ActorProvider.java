@@ -6,7 +6,9 @@ import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
 import java.util.Optional;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Component
 public class ActorProvider {
 
@@ -18,7 +20,14 @@ public class ActorProvider {
                 .map(jwtAuth -> (Jwt) jwtAuth.getPrincipal())
                 .map(jwt -> Optional.ofNullable(jwt.getClaimAsString("preferred_username"))
                         .orElse(jwt.getSubject()))
-                .switchIfEmpty(Mono.just("system"));
+                .switchIfEmpty(Mono.just("system"))
+                .doOnNext(user -> {
+                    if ("system".equals(user)) {
+                        log.warn("No se recibió usuario desde el gateway; se usará '{}'.", user);
+                    } else {
+                        log.info("Usuario autenticado desde el gateway: {}", user);
+                    }
+                });
     }
 
     public Mono<String> currentEmail() {
