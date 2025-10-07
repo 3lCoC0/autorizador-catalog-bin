@@ -32,6 +32,14 @@ public class CorrelationWebFilter implements WebFilter {
         String user = Optional.ofNullable(exchange.getRequest().getHeaders().getFirst("X-User"))
                 .orElse(null);
 
+        if (log.isInfoEnabled()) {
+            log.info("correlation filter - IN method={} path={} cid={} headerUser={}",
+                    exchange.getRequest().getMethod(),
+                    exchange.getRequest().getPath().value(),
+                    cid,
+                    (user == null || user.isBlank()) ? "<none>" : user);
+        }
+
         // 2) Propagar header de salida
         exchange.getResponse().getHeaders().set(CID, cid);
 
