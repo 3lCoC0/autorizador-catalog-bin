@@ -6,6 +6,7 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.domain.plan.CommercePlan
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.plan.PlanItem;
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.plan.SubtypePlanLink;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.config.http.ApiResponses;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.config.security.ActorProvider;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppError;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppException;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.logging.CorrelationWebFilter;
@@ -19,7 +20,6 @@ import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
 
 @Slf4j
 @Component
@@ -36,11 +36,37 @@ public class PlanHandler {
     private final AssignPlanToSubtypeUseCase assignUC;
     private final ValidationUtil validation;
     private final ChangePlanItemStatusUseCase changeItemStatusUC;
+    private final ActorProvider actorProvider;
 
-    private String resolveUser(ServerRequest req, String bodyUser) {
-        if (bodyUser != null && !bodyUser.isBlank()) return bodyUser;
-        String headerUser = req.headers().firstHeader("X-User");
-        return (headerUser != null && !headerUser.isBlank()) ? headerUser : null;
+    private Mono<String> resolveUser(ServerRequest req, String bodyUser, String operation) {
+        return Mono.defer(() -> {
+                    String fromBody = toNullable(bodyUser);
+                    if (fromBody != null) {
+                        log.debug("{} - actor from request body: {}", operation, fromBody);
+                        return Mono.just(fromBody);
+                    }
+                    return Mono.empty();
+                })
+                .switchIfEmpty(Mono.defer(() -> {
+                    String fromHeader = toNullable(req.headers().firstHeader("X-User"));
+                    if (fromHeader != null) {
+                        log.info("{} - actor from header X-User: {}", operation, fromHeader);
+                        return Mono.just(fromHeader);
+                    }
+                    return Mono.empty();
+                }))
+                .switchIfEmpty(actorProvider.currentUserId()
+                        .map(String::trim)
+                        .filter(s -> !s.isBlank())
+                        .doOnNext(user -> log.info("{} - actor from security context: {}", operation, user)));
+    }
+
+    private String printableActor(String value) {
+        return (value == null || value.isBlank()) ? "<none>" : value;
+    }
+
+    private String toNullable(String value) {
+        return (value != null && !value.isBlank()) ? value : null;
     }
 
 
@@ -57,10 +83,15 @@ public class PlanHandler {
 
         return req.bodyToMono(PlanCreateRequest.class)
                 .flatMap(r -> validation.validate(r, AppError.PLAN_INVALID_DATA)) // ← "18"
-                .flatMap(r -> createUC.execute(
-                        r.code(), r.name(), r.validationMode(), r.description(),
-                        resolveUser(req, r.updatedBy())
-                ))
+                .flatMap(r -> resolveUser(req, r.updatedBy(), "plan.create")
+                        .defaultIfEmpty("")
+                        .flatMap(user -> {
+                            log.info("plan.create - actor used={}", printableActor(user));
+                            return createUC.execute(
+                                    r.code(), r.name(), r.validationMode(), r.description(),
+                                    toNullable(user)
+                            );
+                        }))
                 .map(this::toResp)
                 .flatMap(resp -> {
                     log.info("create plan - OK cid={} code={}", cid, resp.code());
@@ -107,8 +138,13 @@ public class PlanHandler {
 
         return req.bodyToMono(PlanUpdateRequest.class)
                 .flatMap(r -> validation.validate(r, AppError.PLAN_INVALID_DATA)) // ← "18"
-                .flatMap(r -> updateUC.execute(code, r.name(), r.description(), r.validationMode(),
-                        resolveUser(req, r.updatedBy())))
+                .flatMap(r -> resolveUser(req, r.updatedBy(), "plan.update")
+                        .defaultIfEmpty("")
+                        .flatMap(user -> {
+                            log.info("plan.update - actor used={}", printableActor(user));
+                            return updateUC.execute(code, r.name(), r.description(), r.validationMode(),
+                                    toNullable(user));
+                        }))
                 .map(this::toResp)
                 .flatMap(resp -> {
                     log.info("update plan - OK cid={} code={}", cid, code);
@@ -122,8 +158,13 @@ public class PlanHandler {
 
         return req.bodyToMono(PlanStatusRequest.class)
                 .flatMap(r -> validation.validate(r, AppError.PLAN_INVALID_DATA)) // ← "18"
-                .flatMap(r -> changeStatusUC.execute(r.planCode(), r.status(),
-                        resolveUser(req, r.updatedBy())))
+                .flatMap(r -> resolveUser(req, r.updatedBy(), "plan.changeStatus")
+                        .defaultIfEmpty("")
+                        .flatMap(user -> {
+                            log.info("plan.changeStatus - actor used={}", printableActor(user));
+                            return changeStatusUC.execute(r.planCode(), r.status(),
+                                    toNullable(user));
+                        }))
                 .map(this::toResp)
                 .flatMap(resp -> {
                     log.info("change plan status - OK cid={} code={}", cid, resp.code());
@@ -138,43 +179,46 @@ public class PlanHandler {
 
         return req.bodyToMono(PlanItemRequest.class)
                 .flatMap(r -> validation.validate(r, AppError.PLAN_ITEM_INVALID_DATA)) // ← "21"
-                .flatMap(r -> {
-                    var by = resolveUser(req, r.updatedBy());
+                .flatMap(r -> resolveUser(req, r.updatedBy(), "plan.addItem")
+                        .defaultIfEmpty("")
+                        .flatMap(user -> {
+                            log.info("plan.addItem - actor used={}", printableActor(user));
+                            String by = toNullable(user);
 
-                    boolean hasBulk   = r.values() != null && !r.values().isEmpty();
-                    boolean hasSingle = r.value() != null && !r.value().isBlank();
+                            boolean hasBulk   = r.values() != null && !r.values().isEmpty();
+                            boolean hasSingle = r.value() != null && !r.value().isBlank();
 
-                    if (!hasBulk && !hasSingle) {
-                        // Mapear el error local a AppException con código "21"
-                        return Mono.error(new AppException(
-                                AppError.PLAN_ITEM_INVALID_DATA,
-                                "Debe enviar 'value' (single) o 'values' (bulk)"
-                        ));
-                    }
+                            if (!hasBulk && !hasSingle) {
+                                // Mapear el error local a AppException con código "21"
+                                return Mono.error(new AppException(
+                                        AppError.PLAN_ITEM_INVALID_DATA,
+                                        "Debe enviar 'value' (single) o 'values' (bulk)"
+                                ));
+                            }
 
-                    // Preferimos BULK si llegaron ambos
-                    if (hasBulk) {
-                        return addItemUC.addMany(r.planCode(), r.values(), by)
-                                .map(this::toBulkDto)
-                                .flatMap(resp -> ApiResponses.jsonOk()
-                                        .contentType(MediaType.APPLICATION_JSON)
-                                        .bodyValue(ApiResponses.okEnvelope(req, "Carga masiva procesada", resp)));
-                    }
+                            // Preferimos BULK si llegaron ambos
+                            if (hasBulk) {
+                                return addItemUC.addMany(r.planCode(), r.values(), by)
+                                        .map(this::toBulkDto)
+                                        .flatMap(resp -> ApiResponses.jsonOk()
+                                                .contentType(MediaType.APPLICATION_JSON)
+                                                .bodyValue(ApiResponses.okEnvelope(req, "Carga masiva procesada", resp)));
+                            }
 
-                    // SINGLE (compatibilidad)
-                    return addItemUC.addValue(r.planCode(), r.value(), by)
-                            .map(this::toItemResp)
-                            .flatMap(resp -> {
-                                log.info("add plan item (single) - OK cid={} planId={} itemId={}",
-                                        cid, resp.planId(), resp.planItemId());
-                                return ServerResponse.created(
-                                                req.uriBuilder().path("/{code}/items/{id}")
-                                                        .build(resp.planId(), resp.planItemId())
-                                        )
-                                        .contentType(MediaType.APPLICATION_JSON)
-                                        .bodyValue(ApiResponses.okEnvelope(req, "Ítem agregado", resp));
-                            });
-                });
+                            // SINGLE (compatibilidad)
+                            return addItemUC.addValue(r.planCode(), r.value(), by)
+                                    .map(this::toItemResp)
+                                    .flatMap(resp -> {
+                                        log.info("add plan item (single) - OK cid={} planId={} itemId={}",
+                                                cid, resp.planId(), resp.planItemId());
+                                        return ServerResponse.created(
+                                                        req.uriBuilder().path("/{code}/items/{id}")
+                                                                .build(resp.planId(), resp.planItemId())
+                                                )
+                                                .contentType(MediaType.APPLICATION_JSON)
+                                                .bodyValue(ApiResponses.okEnvelope(req, "Ítem agregado", resp));
+                                    });
+                        }));
     }
 
 
@@ -197,9 +241,14 @@ public class PlanHandler {
 
         return req.bodyToMono(PlanItemStatus.class)
                 .flatMap(r -> validation.validate(r, AppError.PLAN_ITEM_INVALID_DATA)) // ← "21"
-                .flatMap(r -> changeItemStatusUC.execute(
-                        r.planCode(), r.value(), r.status(),
-                        resolveUser(req, r.updatedBy())))
+                .flatMap(r -> resolveUser(req, r.updatedBy(), "plan.changeItemStatus")
+                        .defaultIfEmpty("")
+                        .flatMap(user -> {
+                            log.info("plan.changeItemStatus - actor used={}", printableActor(user));
+                            return changeItemStatusUC.execute(
+                                    r.planCode(), r.value(), r.status(),
+                                    toNullable(user));
+                        }))
                 .map(this::toItemResp)
                 .flatMap(resp -> {
                     log.info("change item status - OK cid={} planId={} itemId={}", cid, resp.planId(), resp.planItemId());
@@ -237,8 +286,13 @@ public class PlanHandler {
 
         return req.bodyToMono(AssignPlanRequest.class)
                 .flatMap(r -> validation.validate(r, AppError.PLAN_ASSIGNMENT_INVALID_DATA)) // ← "23"
-                .flatMap(r -> assignUC.assign(r.subtypeCode(), r.planCode(),
-                        resolveUser(req, r.updatedBy())))
+                .flatMap(r -> resolveUser(req, r.updatedBy(), "plan.assignToSubtype")
+                        .defaultIfEmpty("")
+                        .flatMap(user -> {
+                            log.info("plan.assignToSubtype - actor used={}", printableActor(user));
+                            return assignUC.assign(r.subtypeCode(), r.planCode(),
+                                    toNullable(user));
+                        }))
                 .map(this::toLinkResp)
                 .flatMap(resp -> {
                     log.info("assign plan to subtype - OK cid={} subtype={} planId={}",
