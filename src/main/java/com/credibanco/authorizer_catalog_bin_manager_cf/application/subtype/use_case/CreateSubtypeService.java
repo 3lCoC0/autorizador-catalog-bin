@@ -10,6 +10,7 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Mono;
+import java.util.List;
 
 @Slf4j
 public record CreateSubtypeService(
@@ -33,12 +34,17 @@ public record CreateSubtypeService(
         Mono<Boolean> fkIdTypeOk = (ownerIdType == null || ownerIdType.isBlank())
                 ? Mono.just(true) : idTypeRepo.existsById(ownerIdType);
 
-        return Mono.zip(cfgMono, fkIdTypeOk)
+        Mono<List<String>> availableIdTypes = (ownerIdType == null || ownerIdType.isBlank())
+                ? Mono.just(List.of()) : idTypeRepo.findAllCodes();
+
+        return Mono.zip(cfgMono, fkIdTypeOk, availableIdTypes)
                 .flatMap(t -> {
                     var cfg = t.getT1();
                     boolean idTypeOk = t.getT2();
+                    List<String> idTypes = t.getT3();
                     if (!idTypeOk)
-                        return Mono.error(new AppException(AppError.SUBTYPE_INVALID_DATA, "OWNER_ID_TYPE no existe: " + ownerIdType));
+                        return Mono.error(new AppException(AppError.SUBTYPE_INVALID_DATA,
+                                ownerIdTypeError(ownerIdType, idTypes)));
 
                     log.debug("UC:Subtype:Create:binConfig bin={} uses={} digits={}", bin, cfg.usesBinExt(), cfg.binExtDigits());
 
@@ -79,6 +85,13 @@ public record CreateSubtypeService(
                 .as(tx::transactional);
     }
 
+    private static String ownerIdTypeError(String ownerIdType, List<String> available) {
+        if (available == null || available.isEmpty()) {
+            return "OWNER_ID_TYPE no existe: " + ownerIdType + ". No hay tipos de identificación configurados.";
+        }
+        return "OWNER_ID_TYPE no existe: " + ownerIdType + ". Valores permitidos: " + String.join(", ", available);
+    }
+
     private static String normalizeExtAgainstConfig(String bin, String rawExt, String uses, Integer digits) {
         int baseLen = bin == null ? 0 : bin.length();
         int maxLen = 9 - baseLen;
@@ -94,6 +107,9 @@ public record CreateSubtypeService(
             if (baseLen + d.length() > 9) throw new IllegalArgumentException("BIN + extensión excede 9 dígitos");
             return d;
         } else {
+            if (rawExt != null && !rawExt.isBlank()) {
+                throw new IllegalArgumentException("bin_ext no permitido para BIN sin extensión");
+            }
             return null;
         }
     }

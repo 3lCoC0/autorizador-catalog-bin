@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Size;
 
 public record SubtypeCreateRequest(
         @NotBlank @Size(min = 3, max = 3,message="subtypeCode debe ser de longitud de 3") String subtypeCode,
-        @NotBlank @Pattern(regexp="\\d{6,9}",message="bin debe ser numérico de longitud 6 a 9") String bin,
+        @NotBlank @Pattern(regexp="\\d{6,9}", message="bin debe ser numérico de longitud entre 6 y 9 posiciones") String bin,
         @NotBlank String name,
         String description,
         String ownerIdType,

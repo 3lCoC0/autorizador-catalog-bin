@@ -15,6 +15,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import com.credibanco.authorizer_catalog_bin_manager_cf.application.bin.port.outbound.SubtypeReadOnlyRepository;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -23,7 +24,7 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 
 @Repository
-public class JpaSubtypeRepository implements SubtypeRepository {
+public class JpaSubtypeRepository implements SubtypeRepository, SubtypeReadOnlyRepository {
 
     private final SubtypeJpaRepository repository;
     private final TransactionTemplate txTemplate;
@@ -45,6 +46,12 @@ public class JpaSubtypeRepository implements SubtypeRepository {
             return Mono.just(false);
         }
         return Mono.defer(() -> Mono.fromCallable(() -> repository.existsByIdBinAndBinExt(bin, binExt)))
+                .subscribeOn(Schedulers.boundedElastic());
+    }
+
+    @Override
+    public Mono<Boolean> existsAnyByBin(String bin) {
+        return Mono.defer(() -> Mono.fromCallable(() -> repository.existsByIdBin(bin)))
                 .subscribeOn(Schedulers.boundedElastic());
     }
 

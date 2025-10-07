@@ -3,6 +3,7 @@ package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inb
 
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.subtype.port.inbound.*;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppError;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppException;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.subtype.dto.*;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.validation.ValidationUtil;
 import lombok.RequiredArgsConstructor;
@@ -70,11 +71,14 @@ public class SubtypeHandler {
 
     public Mono<ServerResponse> listByBin(ServerRequest req) {
         long t0 = System.nanoTime();
-        String bin    = req.pathVariable("bin");
+        final String bin = req.pathVariable("bin");
         String status = req.queryParam("status").orElse(null);
         int page      = req.queryParam("page").map(Integer::parseInt).orElse(0);
         int size      = req.queryParam("size").map(Integer::parseInt).orElse(20);
-
+        if (!bin.chars().allMatch(Character::isDigit) || bin.length() < 6 || bin.length() > 9) {
+            return Mono.error(new AppException(AppError.SUBTYPE_INVALID_DATA,
+                    "El path variable 'bin' debe ser numérico de 6 a 9 dígitos"));
+        }
         log.info("SUBTYPE:list:recv bin={} status={} page={} size={}", bin, status, page, size);
 
         return listUC.execute(bin, null, status, page, size)
@@ -133,7 +137,7 @@ public class SubtypeHandler {
 
         return req.bodyToMono(SubtypeStatusRequest.class)
                 .doOnSubscribe(s -> log.info("SUBTYPE:status:recv bin={} code={}", bin, code))
-                // ✅ nuevo validador con código "04"
+
                 .flatMap(r -> validation.validate(r, AppError.SUBTYPE_INVALID_DATA))
                 .flatMap(r -> changeStatusUC.execute(bin, code, r.status(), resolveUser(req, r.updatedBy())))
                 .map(this::toResponse)

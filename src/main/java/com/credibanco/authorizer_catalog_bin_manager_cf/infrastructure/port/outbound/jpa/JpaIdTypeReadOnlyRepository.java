@@ -1,10 +1,13 @@
 package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.outbound.jpa;
 
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.subtype.port.outbound.IdTypeReadOnlyRepository;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.outbound.jpa.entity.IdTypeEntity;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.outbound.jpa.repository.IdTypeJpaRepository;
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+
+import java.util.List;
 
 @Repository
 public class JpaIdTypeReadOnlyRepository implements IdTypeReadOnlyRepository {
@@ -18,6 +21,15 @@ public class JpaIdTypeReadOnlyRepository implements IdTypeReadOnlyRepository {
     @Override
     public Mono<Boolean> existsById(String idType) {
         return Mono.defer(() -> Mono.fromCallable(() -> repository.existsById(idType)))
+                .subscribeOn(Schedulers.boundedElastic());
+    }
+
+    @Override
+    public Mono<List<String>> findAllCodes() {
+        return Mono.defer(() -> Mono.fromCallable(() -> repository.findAll()
+                        .stream()
+                        .map(IdTypeEntity::getIdTypeCode)
+                        .toList()))
                 .subscribeOn(Schedulers.boundedElastic());
     }
 }

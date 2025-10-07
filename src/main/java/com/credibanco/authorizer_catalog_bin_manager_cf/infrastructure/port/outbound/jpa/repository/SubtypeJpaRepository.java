@@ -15,4 +15,6 @@ public interface SubtypeJpaRepository extends JpaRepository<SubtypeEntity, Subty
     boolean existsByIdSubtypeCodeAndStatus(String subtypeCode, String status);
 
     boolean existsByIdSubtypeCodeAndBinEfectivo(String subtypeCode, String binEfectivo);
+
+    boolean existsByIdBin(String bin);
 }
