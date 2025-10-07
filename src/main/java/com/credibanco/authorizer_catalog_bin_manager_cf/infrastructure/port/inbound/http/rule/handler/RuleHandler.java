@@ -7,6 +7,7 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule.ValidationMa
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.config.security.ActorProvider;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppError;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.rule.dto.*;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.common.RequestActorResolver;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.validation.ValidationUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
