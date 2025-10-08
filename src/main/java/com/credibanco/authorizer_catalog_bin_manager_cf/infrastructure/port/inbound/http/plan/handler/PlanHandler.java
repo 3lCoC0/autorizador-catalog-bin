@@ -260,41 +260,43 @@ public class PlanHandler {
     }
 
     public Mono<ServerResponse> listItems(ServerRequest req) {
-        String code = req.pathVariable("planCode");
-        if (code == null || code.isBlank()) {
+        final String rawCode = req.pathVariable("planCode");
+        final String code = rawCode.trim();
+        if (code.isBlank()) {
             return Mono.error(new AppException(AppError.PLAN_ITEM_INVALID_DATA, "Debe enviar el código del plan"));
         }
-        code = code.trim();
-        int page = req.queryParam("page").map(Integer::parseInt).orElse(0);
-        int size = req.queryParam("size").map(Integer::parseInt).orElse(100);
 
-        var statusParam = req.queryParam("status")
+        final int page = req.queryParam("page").map(Integer::parseInt).orElse(0);
+        final int size = req.queryParam("size").map(Integer::parseInt).orElse(100);
+
+        final var statusParam = req.queryParam("status")
                 .map(String::trim)
                 .filter(s -> !s.isBlank())
                 .map(String::toUpperCase);
 
-        boolean requestAll = statusParam.map("ALL"::equals).orElse(false);
-        String statusLabel = requestAll ? "ALL" : statusParam.orElse("A");
-        String statusFilter = requestAll ? null : statusLabel;
+        final boolean requestAll = statusParam.map("ALL"::equals).orElse(false);
+        final String statusLabel = requestAll ? "ALL" : statusParam.orElse("A");
+        final String statusFilter = requestAll ? null : statusLabel;
 
-        String cid = req.headers().firstHeader(CorrelationWebFilter.CID);
+        final String cid = req.headers().firstHeader(CorrelationWebFilter.CID);
         log.info("list plan items - IN cid={} code={} status={} page={} size={}", cid, code, statusLabel, page, size);
 
-        Mono<CommercePlan> planMono = getUC.execute(code);
-        Mono<List<PlanItemResponse>> itemsMono = listItemsUC.list(code, page, size, statusFilter)
+        final Mono<CommercePlan> planMono = getUC.execute(code);
+        final Mono<List<PlanItemResponse>> itemsMono = listItemsUC.list(code, page, size, statusFilter)
                 .map(this::toItemResp)
                 .collectList();
 
         return Mono.zip(planMono, itemsMono)
                 .flatMap(tuple -> {
-                    CommercePlan plan = tuple.getT1();
-                    List<PlanItemResponse> items = tuple.getT2();
-                    String detail = resolveItemsDetail(statusLabel, items.isEmpty());
+                    final CommercePlan plan = tuple.getT1();
+                    final List<PlanItemResponse> items = tuple.getT2();
+                    final String detail = resolveItemsDetail(statusLabel, items.isEmpty());
                     log.info("list plan items - OK cid={} code={} planId={} status={} count={}",
                             cid, code, plan.planId(), statusLabel, items.size());
                     return ok(req, detail, toPlanItemsResponse(plan, items, page, size, statusLabel));
                 });
     }
+
 
     private String resolveItemsDetail(String statusLabel, boolean empty) {
         if (!empty) {
