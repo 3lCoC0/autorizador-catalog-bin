@@ -7,12 +7,18 @@ import jakarta.validation.constraints.Size;
 
 public record BinCreateRequest(
         @NotBlank @Pattern(regexp="\\d{6,9}", message="bin debe ser numérico de longitud entre 6 y 9 posiciones") String bin,
-        @NotBlank @Size(min=3, max=120) String name,
+        @NotBlank
+        @Size(min=3, max=120)
+        @Pattern(regexp = "^[\\p{L}\\p{N}\\s]+$", message = "name no debe contener caracteres especiales")
+        String name,
         @NotBlank @Pattern(regexp="DEBITO|CREDITO|PREPAGO",message="typeBin debe ser DEBITO|CREDITO|PREPAGO") String typeBin,
         @NotBlank @Pattern(regexp="\\d{2}",message="typeAccount debe ser de 2 posiciones") String typeAccount,
+        @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "compensationCod no debe contener caracteres especiales")
         String compensationCod,
+        @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "description no debe contener caracteres especiales")
         String description,
         @NotBlank @Pattern(regexp="Y|N", message="usesBinExt debe ser 'Y' o 'N'") String usesBinExt,
         Integer binExtDigits,
+        @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "createdBy no debe contener caracteres especiales")
         String createdBy
 ) {}
