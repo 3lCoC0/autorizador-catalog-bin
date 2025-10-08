@@ -17,7 +17,7 @@ public record BinCreateRequest(
         String compensationCod,
         @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "description no debe contener caracteres especiales")
         String description,
-        @NotBlank @Pattern(regexp="Y|N", message="usesBinExt debe ser 'Y' o 'N'") String usesBinExt,
+        @NotBlank @Pattern(regexp= "[YN]", message="usesBinExt debe ser 'Y' o 'N'") String usesBinExt,
         Integer binExtDigits,
         @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "createdBy no debe contener caracteres especiales")
         String createdBy
