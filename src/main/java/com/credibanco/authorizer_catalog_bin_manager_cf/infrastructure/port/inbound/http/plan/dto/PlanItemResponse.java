@@ -6,6 +6,7 @@ public record PlanItemResponse(
         Long planItemId,
         Long planId,
         String value,
+        String status,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt,
         String updatedBy

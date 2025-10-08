@@ -22,6 +22,8 @@ import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -258,26 +260,52 @@ public class PlanHandler {
     }
 
     public Mono<ServerResponse> listItems(ServerRequest req) {
-        var code = req.pathVariable("code");
+        String code = req.pathVariable("planCode");
+        if (code == null || code.isBlank()) {
+            return Mono.error(new AppException(AppError.PLAN_ITEM_INVALID_DATA, "Debe enviar el código del plan"));
+        }
+        code = code.trim();
         int page = req.queryParam("page").map(Integer::parseInt).orElse(0);
         int size = req.queryParam("size").map(Integer::parseInt).orElse(100);
-        String status = req.queryParam("status")
-                .map(String::trim).map(String::toUpperCase)
-                .filter(s -> !"ALL".equals(s)).orElse("A");
+
+        var statusParam = req.queryParam("status")
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .map(String::toUpperCase);
+
+        boolean requestAll = statusParam.map("ALL"::equals).orElse(false);
+        String statusLabel = requestAll ? "ALL" : statusParam.orElse("A");
+        String statusFilter = requestAll ? null : statusLabel;
 
         String cid = req.headers().firstHeader(CorrelationWebFilter.CID);
-        log.info("list plan items - IN cid={} code={} status={} page={} size={}", cid, code, status, page, size);
+        log.info("list plan items - IN cid={} code={} status={} page={} size={}", cid, code, statusLabel, page, size);
 
-        return listItemsUC.list(code, page, size, status).map(this::toItemResp).collectList()
-                .flatMap(list -> {
-                    String detail = list.isEmpty()
-                            ? "A".equals(status)
-                            ? "El plan no tiene ítems activos"
-                            : "El plan no tiene ítems para el filtro"
-                            : "Consulta exitosa";
-                    log.info("list plan items - OK cid={} code={} count={}", cid, code, list.size());
-                    return ok(req, detail, list);
+        Mono<CommercePlan> planMono = getUC.execute(code);
+        Mono<List<PlanItemResponse>> itemsMono = listItemsUC.list(code, page, size, statusFilter)
+                .map(this::toItemResp)
+                .collectList();
+
+        return Mono.zip(planMono, itemsMono)
+                .flatMap(tuple -> {
+                    CommercePlan plan = tuple.getT1();
+                    List<PlanItemResponse> items = tuple.getT2();
+                    String detail = resolveItemsDetail(statusLabel, items.isEmpty());
+                    log.info("list plan items - OK cid={} code={} planId={} status={} count={}",
+                            cid, code, plan.planId(), statusLabel, items.size());
+                    return ok(req, detail, toPlanItemsResponse(plan, items, page, size, statusLabel));
                 });
+    }
+
+    private String resolveItemsDetail(String statusLabel, boolean empty) {
+        if (!empty) {
+            return "Consulta exitosa";
+        }
+        return switch (statusLabel) {
+            case "A" -> "El plan no tiene ítems activos";
+            case "I" -> "El plan no tiene ítems inactivos";
+            case "ALL" -> "El plan no tiene ítems";
+            default -> "El plan no tiene ítems para el filtro";
+        };
     }
 
 
@@ -303,6 +331,13 @@ public class PlanHandler {
     }
 
 
+    private PlanItemsListResponse toPlanItemsResponse(CommercePlan plan, List<PlanItemResponse> items,
+                                                     int page, int size, String statusLabel) {
+        return new PlanItemsListResponse(
+                toResp(plan), page, size, statusLabel, items.size(), items
+        );
+    }
+
     private PlanResponse toResp(CommercePlan p) {
         return new PlanResponse(
                 p.planId(), p.code(), p.name(), p.validationMode(),
@@ -312,7 +347,7 @@ public class PlanHandler {
 
     private PlanItemResponse toItemResp(PlanItem i) {
         return new PlanItemResponse(
-                i.planItemId(), i.planId(), i.value(), i.createdAt(), i.updatedAt(), i.updatedBy()
+                i.planItemId(), i.planId(), i.value(), i.status(), i.createdAt(), i.updatedAt(), i.updatedBy()
         );
     }
 
