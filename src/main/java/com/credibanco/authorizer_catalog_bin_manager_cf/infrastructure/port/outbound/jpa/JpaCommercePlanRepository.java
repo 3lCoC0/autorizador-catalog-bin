@@ -56,8 +56,7 @@ public class JpaCommercePlanRepository implements CommercePlanRepository {
 
     private Mono<Optional<CommercePlanEntity>> handlePlanLookupError(String planCode, Throwable error) {
         if (error instanceof DataAccessException && isPlanCodeLengthError(error)) {
-            log.warn("find plan by code - ignoring invalid planCode='{}' due to length error: {}",
-                    planCode, formatLengthErrorMessage(error));
+            log.warn("find plan by code - ignoring invalid planCode='{}' due to length error", planCode, error);
             return Mono.just(Optional.empty());
         }
         return Mono.error(error);
@@ -77,26 +76,10 @@ public class JpaCommercePlanRepository implements CommercePlanRepository {
 
     private Mono<Boolean> handlePlanExistsError(String planCode, Throwable error) {
         if (error instanceof DataAccessException && isPlanCodeLengthError(error)) {
-            log.warn("exists plan by code - ignoring invalid planCode='{}' due to length error: {}",
-                    planCode, formatLengthErrorMessage(error));
+            log.warn("exists plan by code - ignoring invalid planCode='{}' due to length error", planCode, error);
             return Mono.just(Boolean.FALSE);
         }
         return Mono.error(error);
-    }
-
-    private String formatLengthErrorMessage(Throwable error) {
-        Throwable current = error;
-        Throwable last = error;
-        while (current != null) {
-            last = current;
-            current = current.getCause();
-        }
-        StringBuilder builder = new StringBuilder(last.getClass().getSimpleName());
-        String message = last.getMessage();
-        if (message != null && !message.isBlank()) {
-            builder.append(": ").append(message.replaceAll("\n", " ").trim());
-        }
-        return builder.toString();
     }
 
     @Override
