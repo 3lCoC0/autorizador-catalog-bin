@@ -6,5 +6,5 @@ import jakarta.validation.constraints.Pattern;
 public record SubtypeStatusRequest(
         @NotBlank @Pattern(regexp = "A|I", message = "status debe ser 'A' o 'I'")
         String status,
-        String updatedBy
+        @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "updatedBy no debe contener caracteres especiales") String updatedBy
 ) {}
