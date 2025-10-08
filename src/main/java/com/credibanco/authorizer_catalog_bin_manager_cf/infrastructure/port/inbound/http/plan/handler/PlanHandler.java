@@ -297,6 +297,18 @@ public class PlanHandler {
                 });
     }
 
+    private String resolveItemsDetail(String statusLabel, boolean empty) {
+        if (!empty) {
+            return "Consulta exitosa";
+        }
+        return switch (statusLabel) {
+            case "A" -> "El plan no tiene ítems activos";
+            case "I" -> "El plan no tiene ítems inactivos";
+            case "ALL" -> "El plan no tiene ítems";
+            default -> "El plan no tiene ítems para el filtro";
+        };
+    }
+
 
     private String resolveItemsDetail(String statusLabel, boolean empty) {
         if (!empty) {
