@@ -266,8 +266,21 @@ public class PlanHandler {
             return Mono.error(new AppException(AppError.PLAN_ITEM_INVALID_DATA, "Debe enviar el código del plan"));
         }
 
-        final int page = req.queryParam("page").map(Integer::parseInt).orElse(0);
-        final int size = req.queryParam("size").map(Integer::parseInt).orElse(100);
+        final int page = req.queryParam("page")
+                .map(s -> {
+                    try { return Integer.parseInt(s); }
+                    catch (NumberFormatException e) {
+                        throw new AppException(AppError.PLAN_ITEM_INVALID_DATA, "El parámetro 'page' debe ser numérico");
+                    }
+                }).orElse(0);
+
+        final int size = req.queryParam("size")
+                .map(s -> {
+                    try { return Integer.parseInt(s); }
+                    catch (NumberFormatException e) {
+                        throw new AppException(AppError.PLAN_ITEM_INVALID_DATA, "El parámetro 'size' debe ser numérico");
+                    }
+                }).orElse(100);
 
         final var statusParam = req.queryParam("status")
                 .map(String::trim)
@@ -275,38 +288,25 @@ public class PlanHandler {
                 .map(String::toUpperCase);
 
         final boolean requestAll = statusParam.map("ALL"::equals).orElse(false);
-        final String statusLabel = requestAll ? "ALL" : statusParam.orElse("A");
-        final String statusFilter = requestAll ? null : statusLabel;
+        final String statusLabel  = requestAll ? "ALL" : statusParam.orElse("A");
+        final String statusFilter = requestAll ? null   : statusLabel;
 
         final String cid = req.headers().firstHeader(CorrelationWebFilter.CID);
         log.info("list plan items - IN cid={} code={} status={} page={} size={}", cid, code, statusLabel, page, size);
 
-        final Mono<CommercePlan> planMono = getUC.execute(code);
-        final Mono<List<PlanItemResponse>> itemsMono = listItemsUC.list(code, page, size, statusFilter)
-                .map(this::toItemResp)
-                .collectList();
-
-        return Mono.zip(planMono, itemsMono)
-                .flatMap(tuple -> {
-                    final CommercePlan plan = tuple.getT1();
-                    final List<PlanItemResponse> items = tuple.getT2();
-                    final String detail = resolveItemsDetail(statusLabel, items.isEmpty());
-                    log.info("list plan items - OK cid={} code={} planId={} status={} count={}",
-                            cid, code, plan.planId(), statusLabel, items.size());
-                    return ok(req, detail, toPlanItemsResponse(plan, items, page, size, statusLabel));
-                });
-    }
-
-    private String resolveItemsDetail(String statusLabel, boolean empty) {
-        if (!empty) {
-            return "Consulta exitosa";
-        }
-        return switch (statusLabel) {
-            case "A" -> "El plan no tiene ítems activos";
-            case "I" -> "El plan no tiene ítems inactivos";
-            case "ALL" -> "El plan no tiene ítems";
-            default -> "El plan no tiene ítems para el filtro";
-        };
+        // Secuencial: si getUC falla (404 plan no encontrado), NO se consulta items
+        return getUC.execute(code)
+                .flatMap(plan ->
+                        listItemsUC.list(code, page, size, statusFilter)
+                                .map(this::toItemResp)
+                                .collectList()
+                                .flatMap(items -> {
+                                    final String detail = resolveItemsDetail(statusLabel, items.isEmpty());
+                                    log.info("list plan items - OK cid={} code={} planId={} status={} count={}",
+                                            cid, code, plan.planId(), statusLabel, items.size());
+                                    return ok(req, detail, toPlanItemsResponse(plan, items, page, size, statusLabel));
+                                })
+                );
     }
 
 
