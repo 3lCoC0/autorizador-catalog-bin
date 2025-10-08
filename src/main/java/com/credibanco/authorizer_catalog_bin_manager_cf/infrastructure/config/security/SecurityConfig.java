@@ -26,11 +26,23 @@ import org.springframework.security.web.server.authentication.ServerAuthenticati
 import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatchers;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Mono;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
+import org.springframework.web.reactive.function.client.WebClient;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
+import reactor.netty.http.client.HttpClient;
 
+import javax.net.ssl.TrustManagerFactory;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.KeyStore;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateFactory;
 
 @Configuration
 @EnableReactiveMethodSecurity
@@ -45,6 +57,9 @@ public class SecurityConfig {
 
     @Value("${internal.jwt.required-audience}")
     private String requiredAudience;          // catalog-api
+
+    @Value("${internal.jwt.jwk.trusted-cert-path:}")
+    private String jwkTrustedCertificatePath;
 
     @Bean
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http,
@@ -125,7 +140,10 @@ public class SecurityConfig {
      */
     @Bean
     public ReactiveJwtDecoder jwtDecoder() {
-        NimbusReactiveJwtDecoder decoder = NimbusReactiveJwtDecoder.withJwkSetUri(jwkSetUri).build();
+        NimbusReactiveJwtDecoder decoder = NimbusReactiveJwtDecoder
+                .withJwkSetUri(jwkSetUri)
+                .webClient(buildJwkWebClient())
+                .build();
 
         OAuth2TokenValidator<Jwt> defaults = JwtValidators.createDefault(); // exp/nbf, etc.
 
@@ -150,5 +168,52 @@ public class SecurityConfig {
         return decoder;
     }
 
-    
+
+    private WebClient buildJwkWebClient() {
+        HttpClient httpClient = HttpClient.create();
+
+        if (StringUtils.hasText(jwkTrustedCertificatePath)) {
+            try {
+                httpClient = httpClient.secure(ssl -> {
+                    try {
+                        ssl.sslContext(buildSslContext(jwkTrustedCertificatePath));
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+            } catch (Exception ex) {
+                throw new IllegalStateException("Failed to initialize SSL context for JWK requests", ex);
+            }
+        }
+
+        return WebClient.builder()
+                .clientConnector(new ReactorClientHttpConnector(httpClient))
+                .build();
+    }
+
+    private SslContext buildSslContext(String certificatePath) throws Exception {
+        Path path = Path.of(certificatePath);
+        if (!Files.exists(path)) {
+            throw new IllegalArgumentException("Certificate file does not exist: " + certificatePath);
+        }
+
+        KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+        keyStore.load(null);
+
+        CertificateFactory certificateFactory = CertificateFactory.getInstance("X.509");
+        try (InputStream inputStream = Files.newInputStream(path)) {
+            int index = 0;
+            for (Certificate certificate : certificateFactory.generateCertificates(inputStream)) {
+                keyStore.setCertificateEntry("cert-" + index++, certificate);
+            }
+        }
+
+        TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        trustManagerFactory.init(keyStore);
+
+        return SslContextBuilder.forClient()
+                .trustManager(trustManagerFactory)
+                .build();
+    }
+
 }
