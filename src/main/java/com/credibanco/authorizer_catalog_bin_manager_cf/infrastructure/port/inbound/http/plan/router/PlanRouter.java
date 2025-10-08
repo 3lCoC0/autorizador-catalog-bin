@@ -31,7 +31,7 @@ public class PlanRouter {
 
                 .POST("/plans/items/attach", accept(MediaType.APPLICATION_JSON), handler::addItem)
 
-                .GET ("/plans/items/get/{code}", accept(MediaType.APPLICATION_JSON), handler::listItems)
+                .GET ("/plans/items/get/{planCode}", accept(MediaType.APPLICATION_JSON), handler::listItems)
 
                 .PUT ("/plans/items/update/status", accept(MediaType.APPLICATION_JSON), handler::changeItemStatus)
 
