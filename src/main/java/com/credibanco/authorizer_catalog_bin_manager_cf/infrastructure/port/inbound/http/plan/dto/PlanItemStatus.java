@@ -5,9 +5,9 @@ import jakarta.validation.constraints.Pattern;
 
 
 public record PlanItemStatus(
-        @NotBlank String planCode,
-        @NotBlank String value,
+        @NotBlank @Pattern(regexp = "^[\\p{L}\\p{N}\\s]+$", message = "planCode no debe contener caracteres especiales") String planCode,
+        @NotBlank @Pattern(regexp = "^[\\p{L}\\p{N}\\s]+$", message = "value no debe contener caracteres especiales") String value,
         @NotBlank @Pattern(regexp = "A|I") String status,
-        String updatedBy
+        @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "updatedBy no debe contener caracteres especiales") String updatedBy
 
 ) {}
