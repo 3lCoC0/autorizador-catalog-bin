@@ -3,9 +3,11 @@ package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inb
 
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.rule.port.inbound.*;
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule.Validation;
+import com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule.ValidationDataType;
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule.ValidationMap;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.config.security.ActorProvider;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppError;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppException;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.rule.dto.*;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.common.RequestActorResolver;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.validation.ValidationUtil;
@@ -46,7 +48,13 @@ public class RuleHandler {
                         .defaultIfEmpty("")
                         .flatMap(user -> {
                             log.info("rules.validation.create - actor used={}", printableActor(user));
-                            return createV.execute(r.code(), r.description(), r.dataType(), toNullable(user));
+                            ValidationDataType type;
+                            try {
+                                type = ValidationDataType.fromJson(r.dataType());
+                            } catch (IllegalArgumentException e) {
+                                return Mono.error(new AppException(AppError.RULES_VALIDATION_INVALID_DATA, e.getMessage()));
+                            }
+                            return createV.execute(r.code(), r.description(), type, toNullable(user));
                         }))
                 .map(this::toResp)
                 .doOnSuccess(v -> log.info("RULES:validation:create:done code={} elapsedMs={}", v.code(), ms(t0)))
