@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Size;
 
 public record AgencyUpdateRequest(
         @NotBlank @Size(max=120) @Pattern(regexp = "^[\\p{L}\\p{N}\\s]+$", message = "name no debe contener caracteres especiales") String name,
-        @Size(max=20)  @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "agencyNit no debe contener caracteres especiales") String agencyNit,
+        @NotBlank @Size(max=20)  @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "agencyNit no debe contener caracteres especiales") String agencyNit,
         @Size(max=200) @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "address no debe contener caracteres especiales") String address,
         @Size(max=30)  @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "phone no debe contener caracteres especiales") String phone,
         @Size(max=10)  @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "municipalityDaneCode no debe contener caracteres especiales") String municipalityDaneCode,

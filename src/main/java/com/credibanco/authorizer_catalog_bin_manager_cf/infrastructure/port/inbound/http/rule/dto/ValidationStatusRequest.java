@@ -3,6 +3,6 @@ package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inb
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 public record ValidationStatusRequest(
-        @NotBlank @Pattern(regexp="A|I") String status,
+        @NotBlank @Pattern(regexp= "[AI]") String status,
         String updatedBy
 ) {}
