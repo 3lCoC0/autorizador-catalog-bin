@@ -18,7 +18,7 @@ public record Bin(
         String usesBinExt,         // <-- 'Y'|'N'
         Integer binExtDigits    // <-- 1|2|3 si usesBinExt='Y', si 'N' => null
 ) {
-    private static final Pattern ALPHANUMERIC_WITH_SPACES = Pattern.compile("^[\\p{L}\\p{N}\\s]+$");
+
 
     public Bin {
         require(bin, "bin");
@@ -27,7 +27,6 @@ public record Bin(
         if (len < 6 || len > 9) throw new IllegalArgumentException("BIN debe tener entre 6 y 9 dígitos");
 
         require(name, "name");
-        ensureNoSpecialCharacters(name, "name");
         require(typeBin, "typeBin");
         if (!("DEBITO".equals(typeBin) || "CREDITO".equals(typeBin) || "PREPAGO".equals(typeBin)))
             throw new IllegalArgumentException("typeBin inválido (use DEBITO|CREDITO|PREPAGO)");
@@ -36,8 +35,6 @@ public record Bin(
         if (!(typeAccount.length() == 2 && typeAccount.chars().allMatch(Character::isDigit)))
             throw new IllegalArgumentException("typeAccount debe ser de 2 dígitos");
 
-        ensureNoSpecialCharacters(compensationCod, "compensationCod");
-        ensureNoSpecialCharacters(description, "description");
 
         require(status, "status");
         if (!Objects.equals(status, "A") && !Objects.equals(status, "I"))
@@ -94,7 +91,6 @@ public record Bin(
                             String newUsesBinExt, Integer newBinExtDigits,
                             String byNullable) {
         require(newName, "name");
-        ensureNoSpecialCharacters(newName, "name");
         require(newTypeBin, "typeBin");
         if (!("DEBITO".equals(newTypeBin) || "CREDITO".equals(newTypeBin) || "PREPAGO".equals(newTypeBin)))
             throw new IllegalArgumentException("typeBin inválido (use DEBITO|CREDITO|PREPAGO)");
@@ -102,9 +98,6 @@ public record Bin(
         if (!(newTypeAccount.length() == 2 && newTypeAccount.chars().allMatch(Character::isDigit)))
             throw new IllegalArgumentException("typeAccount debe ser de 2 dígitos");
 
-
-        ensureNoSpecialCharacters(newCompCod, "compensationCod");
-        ensureNoSpecialCharacters(newDescription, "description");
 
 
         int baseLen = bin.length();
@@ -130,12 +123,5 @@ public record Bin(
         if (v == null || v.isBlank()) throw new IllegalArgumentException(f + " es requerido");
     }
 
-    private static void ensureNoSpecialCharacters(String value, String field) {
-        if (value == null || value.isBlank()) {
-            return;
-        }
-        if (!ALPHANUMERIC_WITH_SPACES.matcher(value).matches()) {
-            throw new IllegalArgumentException(field + " no debe contener caracteres especiales");
-        }
-    }
+
 }
