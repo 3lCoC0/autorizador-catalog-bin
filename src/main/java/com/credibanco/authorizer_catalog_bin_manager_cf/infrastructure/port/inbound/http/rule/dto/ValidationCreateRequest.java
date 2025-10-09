@@ -1,6 +1,6 @@
 package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.rule.dto;
 
-import com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule.ValidationDataType;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -10,7 +10,7 @@ public record ValidationCreateRequest(
         @NotBlank @Size(max=40) @Pattern(regexp = "^[\\p{L}\\p{N}\\s]+$", message = "code no debe contener caracteres especiales") String code,
         @Size(max=200) @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "description no debe contener caracteres especiales") String description,
         @NotBlank(message = "dataType es requerido")
-        @Pattern(regexp = "(?i)^(BOOL|NUMBER|TEXT)$", message = "dataType inválido. Valores permitidos: BOOL | NUMBER | TEXT")
+        @NotNull @Pattern(regexp = "(?i)^(BOOL|NUMBER|TEXT)$", message = "dataType inválido. Valores permitidos: BOOL | NUMBER | TEXT")
         String dataType,
         @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "valueFlag no debe contener caracteres especiales") String valueFlag,
         Double valueNum,
