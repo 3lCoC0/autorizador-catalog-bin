@@ -18,6 +18,6 @@ public record BinCreateRequest(
         @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "description no debe contener caracteres especiales")
         String description,
         @NotBlank @Pattern(regexp= "[YN]", message="usesBinExt debe ser 'Y' o 'N'") String usesBinExt,
-        Integer binExtDigits,
+        @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "binExtDigits no debe contener caracteres especiales")Integer binExtDigits,
         String createdBy
 ) {}
