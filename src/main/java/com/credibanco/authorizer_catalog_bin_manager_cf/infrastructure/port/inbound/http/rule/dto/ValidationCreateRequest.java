@@ -13,5 +13,5 @@ public record ValidationCreateRequest(
         @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "valueFlag no debe contener caracteres especiales") String valueFlag,
         Double valueNum,
         @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "valueText no debe contener caracteres especiales") String valueText,
-        @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "createdBy no debe contener caracteres especiales") String createdBy
+        String createdBy
 ) {}

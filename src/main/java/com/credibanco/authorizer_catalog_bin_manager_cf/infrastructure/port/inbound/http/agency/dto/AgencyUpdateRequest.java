@@ -21,5 +21,5 @@ public record AgencyUpdateRequest(
         @Size(max=120) @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "pinCustodianSecondary no debe contener caracteres especiales") String pinCustodianSecondary,
         @Size(max=30)  @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "pinCustodianSecondaryId no debe contener caracteres especiales") String pinCustodianSecondaryId,
         @Size(max=400) @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "description no debe contener caracteres especiales") String description,
-        @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "updatedBy no debe contener caracteres especiales") String updatedBy
+        String updatedBy
 ) {}

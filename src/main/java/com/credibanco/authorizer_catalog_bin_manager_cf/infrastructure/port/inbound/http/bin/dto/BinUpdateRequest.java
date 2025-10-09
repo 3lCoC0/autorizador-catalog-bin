@@ -18,6 +18,5 @@ public record BinUpdateRequest(
         String description,
         @NotBlank @Pattern(regexp= "[YN]", message="usesBinExt debe ser 'Y' o 'N'") String usesBinExt,
         Integer binExtDigits,
-        @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "updatedBy no debe contener caracteres especiales")
         String updatedBy
 ) {}

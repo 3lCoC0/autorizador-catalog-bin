@@ -5,5 +5,5 @@ import jakarta.validation.constraints.Pattern;
 
 public record AgencyStatusRequest(
         @NotBlank @Pattern(regexp="A|I") String status,
-        @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "updatedBy no debe contener caracteres especiales") String updatedBy
+        String updatedBy
 ) {}

@@ -9,5 +9,5 @@ public record PlanItemRequest(
         @NotBlank @Pattern(regexp = "^[\\p{L}\\p{N}\\s]+$", message = "planCode no debe contener caracteres especiales") String planCode,
         @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "value no debe contener caracteres especiales") String value,
         List<String> values,
-        @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "updatedBy no debe contener caracteres especiales") String updatedBy
+        String updatedBy
 ) {}

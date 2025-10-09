@@ -48,7 +48,6 @@ public record Bin(
         if (!("Y".equals(usesBinExt) || "N".equals(usesBinExt)))
             throw new IllegalArgumentException("usesBinExt debe ser 'Y' o 'N'");
 
-        ensureNoSpecialCharacters(updatedBy, "updatedBy");
 
         int baseLen = bin.length();
         if ("Y".equals(usesBinExt)) {
@@ -106,7 +105,7 @@ public record Bin(
 
         ensureNoSpecialCharacters(newCompCod, "compensationCod");
         ensureNoSpecialCharacters(newDescription, "description");
-        ensureNoSpecialCharacters(byNullable, "updatedBy");
+
 
         int baseLen = bin.length();
         if ("Y".equals(usesBinExt)) {

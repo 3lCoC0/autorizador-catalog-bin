@@ -12,5 +12,5 @@ public record SubtypeCreateRequest(
         @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "ownerIdType no debe contener caracteres especiales") String ownerIdType,
         @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "ownerIdNumber no debe contener caracteres especiales") String ownerIdNumber,
         @Pattern(regexp="\\d*", message="binExt debe ser numérico") String binExt,
-        @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "createdBy no debe contener caracteres especiales") String createdBy
+        String createdBy
 ) {}

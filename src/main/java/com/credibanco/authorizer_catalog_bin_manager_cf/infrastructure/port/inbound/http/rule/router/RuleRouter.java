@@ -25,17 +25,11 @@ public class RuleRouter {
                 .GET ("/validations/get/{code}", accept(MediaType.APPLICATION_JSON), h::getValidation)
                 .PUT ("/validations/update/{code}", accept(MediaType.APPLICATION_JSON), h::updateValidation)
                 .PUT ("/validations/update/status/{code}", accept(MediaType.APPLICATION_JSON), h::changeValidationStatus)
-
                 .POST("/validations/attach", accept(MediaType.APPLICATION_JSON), h::attachRule)
-
                 .PUT ("/validations/subtypes/{subtypeCode}/bins/{bin}/rules/status/{code}", accept(MediaType.APPLICATION_JSON), h::changeRuleStatus)
-
                 .GET ("/validations/subtypes/list/{subtypeCode}", accept(MediaType.APPLICATION_JSON), h::listRulesForSubtypeBySubtype)
-
-
                 .GET ("/v1/subtypes/{subtypeCode}/bins/{bin}/rules", accept(MediaType.APPLICATION_JSON), h::listRulesForSubtype)
                 .GET ("/v1/subtypes/{subtypeCode}/rules", accept(MediaType.APPLICATION_JSON), h::listRulesForSubtypeBySubtype)
-
                 .build();
     }
 }
