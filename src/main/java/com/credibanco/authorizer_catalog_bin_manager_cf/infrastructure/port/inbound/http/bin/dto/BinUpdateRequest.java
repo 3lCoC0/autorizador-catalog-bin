@@ -1,5 +1,6 @@
 package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.bin.dto;
 
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.validation.AlphaNumericWithSpaces;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -12,12 +13,12 @@ public record BinUpdateRequest(
         String name,
         @NotBlank @Pattern(regexp="DEBITO|CREDITO|PREPAGO",message="typeBin debe ser DEBITO|CREDITO|PREPAGO") String typeBin,
         @NotBlank @Pattern(regexp="\\d{2}",message="typeAccount debe ser de 2 posiciones numericas") String typeAccount,
-        @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "compensationCod no debe contener caracteres especiales")
+        @AlphaNumericWithSpaces(message = "compensationCod no debe contener caracteres especiales")
         String compensationCod,
-        @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "description no debe contener caracteres especiales")
+        @AlphaNumericWithSpaces(message = "description no debe contener caracteres especiales")
         String description,
         @NotBlank @Pattern(regexp= "[YN]", message="usesBinExt debe ser 'Y' o 'N'") String usesBinExt,
         Integer binExtDigits,
-        @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "updatedBy no debe contener caracteres especiales")
+        @AlphaNumericWithSpaces(message = "updatedBy no debe contener caracteres especiales")
         String updatedBy
 ) {}
