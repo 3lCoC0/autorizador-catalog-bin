@@ -3,6 +3,9 @@ package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exceptio
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.config.http.ApiError;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.config.http.ApiResponses;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
+import com.fasterxml.jackson.databind.exc.MismatchedInputException;
+import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.web.reactive.error.ErrorWebExceptionHandler;
@@ -76,13 +79,7 @@ public class GlobalErrorHandler implements ErrorWebExceptionHandler {
             // Camino "ideal": los casos de uso lanzan AppException con su AppError tipado
             appError = ae.getError();
             message = safeMessage(ae.getMessage(), appError.defaultMessage);
-        } else if (ex instanceof ResponseStatusException rse) {
-            // Respetamos el status si viene de RSE, pero con nuestros códigos
-            HttpStatus st = HttpStatus.resolve(rse.getStatusCode().value());
-            if (st == null) st = HttpStatus.INTERNAL_SERVER_ERROR;
-            var mapped = mapFallbackByStatus(path, st);
-            appError = mapped.error;
-            message = safeMessage(rse.getReason(), mapped.message);
+
         } else if (ex instanceof ServerWebInputException
                 || ex instanceof DecodingException
                 || ex instanceof ConstraintViolationException
@@ -91,6 +88,17 @@ public class GlobalErrorHandler implements ErrorWebExceptionHandler {
             var mapped = mapFallbackValidation(path);
             appError = mapped.error;
             message  = safeMessage(unwrapMessage(ex), mapped.message);
+
+        } else if (ex instanceof ResponseStatusException rse) {
+            // Respetamos el status si viene de RSE, pero con nuestros códigos
+            HttpStatus st = HttpStatus.resolve(rse.getStatusCode().value());
+            if (st == null) st = HttpStatus.INTERNAL_SERVER_ERROR;
+            var mapped = mapFallbackByStatus(path, st);
+            appError = mapped.error;
+            message = safeMessage(rse.getReason(), mapped.message);
+
+
+
         } else if (ex instanceof java.util.NoSuchElementException || ex instanceof NotFoundException) {
             // No encontrado
             var mapped = mapFallbackNotFound(path);
@@ -148,7 +156,7 @@ public class GlobalErrorHandler implements ErrorWebExceptionHandler {
      * Ajusta aquí si tus rutas cambian.
      */
     private boolean isBinPath(String path) {
-        return path != null && path.startsWith("/v1/bins");
+        return path != null && path.startsWith("/bins/");
     }
 
     private MappedError mapFallbackValidation(String path) {
@@ -185,6 +193,37 @@ public class GlobalErrorHandler implements ErrorWebExceptionHandler {
     // Utilidades
     // ========================================================================
 
+    /** Retorna la causa más específica (última) de la cadena de excepciones. */
+    private static Throwable mostSpecific(Throwable ex) {
+        Throwable cur = ex;
+        while (cur.getCause() != null) {
+            cur = cur.getCause();
+        }
+        return cur;
+    }
+
+    /** Intenta extraer el mensaje “original” de las excepciones de Jackson. */
+    private static String jacksonMessageOrNull(Throwable t) {
+        if (t instanceof MismatchedInputException mie) {
+            String m = mie.getOriginalMessage();
+            return (m != null && !m.isBlank()) ? m.trim() : trimOrNull(mie.getMessage());
+        }
+        if (t instanceof InvalidFormatException ife) {
+            String m = ife.getOriginalMessage();
+            return (m != null && !m.isBlank()) ? m.trim() : trimOrNull(ife.getMessage());
+        }
+        if (t instanceof ValueInstantiationException vie) {
+            String m = vie.getOriginalMessage();
+            return (m != null && !m.isBlank()) ? m.trim() : trimOrNull(vie.getMessage());
+        }
+        return null;
+    }
+
+    private static String trimOrNull(String s) {
+        return (s == null) ? null : s.trim();
+    }
+
+
     private static String safeMessage(String given, String fallback) {
         if (StringUtils.hasText(given)) return truncate(given.trim(), 500);
         return fallback;
@@ -196,6 +235,23 @@ public class GlobalErrorHandler implements ErrorWebExceptionHandler {
     }
 
     private String unwrapMessage(Throwable ex) {
+
+
+        // 1) Si es DecodingException o ServerWebInputException, intenta sacar el mensaje de Jackson
+        if (ex instanceof DecodingException || ex instanceof ServerWebInputException) {
+            // Primero, busca la causa más específica
+            Throwable root = mostSpecific(ex);
+            // Intenta extraer el “originalMessage” de Jackson
+            String jm = jacksonMessageOrNull(root);
+            if (StringUtils.hasText(jm)) return truncate(jm, 500);
+            // A veces la causa directa útil está un nivel arriba
+            if (ex.getCause() != null) {
+                jm = jacksonMessageOrNull(ex.getCause());
+                if (StringUtils.hasText(jm)) return truncate(jm, 500);
+            }
+        }
+
+
         // Busca un mensaje razonable en la cadena de causas (IllegalArgumentException, etc.)
         Throwable t = ex;
         while (t != null) {
@@ -230,7 +286,7 @@ public class GlobalErrorHandler implements ErrorWebExceptionHandler {
         return null;
     }
 
-    // ========================================================================
+     // ========================================================================
     // Tipos auxiliares
     // ========================================================================
 

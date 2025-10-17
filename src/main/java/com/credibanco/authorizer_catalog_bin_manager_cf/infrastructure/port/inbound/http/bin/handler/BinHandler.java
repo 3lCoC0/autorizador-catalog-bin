@@ -116,6 +116,7 @@ public class BinHandler {
     public Mono<ServerResponse> update(ServerRequest req) {
         long t0 = System.nanoTime();
         return req.bodyToMono(BinUpdateRequest.class)
+                .doOnNext(request -> log.info("BIN create Request: {}",request))
                 .doOnSubscribe(s -> log.info("BIN:update:recv"))
                 .flatMap(r -> validation.validate(r, AppError.BIN_INVALID_DATA))
                 .flatMap(r -> {
