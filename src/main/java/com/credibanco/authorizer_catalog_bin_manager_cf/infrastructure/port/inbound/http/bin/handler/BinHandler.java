@@ -123,7 +123,7 @@ public class BinHandler {
                     log.debug("BIN:update:validated bin={}, usesExt={}, extDigits={}",
                             r.bin(), r.usesBinExt(), r.binExtDigits());
 
-                    return resolveUser(req, r.updatedBy(), "bin.update")
+                    return resolveUser(req, r.createdBy(), "bin.update")
                             .defaultIfEmpty("")
                             .flatMap(user -> {
                                 log.info("bin.update - actor used={}", printableActor(user));

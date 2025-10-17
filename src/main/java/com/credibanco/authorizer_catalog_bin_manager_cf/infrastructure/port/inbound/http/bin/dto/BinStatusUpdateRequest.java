@@ -6,8 +6,7 @@ import jakarta.validation.constraints.Pattern;
 
 
 public record BinStatusUpdateRequest(
-        @NotBlank
-        @Pattern(regexp = "A|I", message = "status debe ser 'A' o 'I'")
+        @Pattern(regexp = "[AI]", message = "status debe ser 'A' o 'I'")
         String status,
         String updatedBy
 ) {}
