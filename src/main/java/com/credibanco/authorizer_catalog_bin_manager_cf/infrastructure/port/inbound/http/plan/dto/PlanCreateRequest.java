@@ -1,14 +1,31 @@
 package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.plan.dto;
 
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.plan.CommerceValidationMode;
+import com.credibanco.authorizer_catalog_bin_manager_cf.shared.validation.SafeText;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 
 public record PlanCreateRequest(
-        @NotBlank @Pattern(regexp = "^[\\p{L}\\p{N}\\s]+$", message = "code no debe contener caracteres especiales") String code,
-        @NotBlank @Pattern(regexp = "^[\\p{L}\\p{N}\\s]+$", message = "name no debe contener caracteres especiales") String name,
-        @NotNull CommerceValidationMode validationMode,
-        @Pattern(regexp = "^[\\p{L}\\p{N}\\s]*$", message = "description no debe contener caracteres especiales") String description,
+        @NotBlank(message = "code no puede ser vacio")
+        @NotNull(message = "code no puede ser nulo")
+        @SafeText(allowNumbers = true, allowUnderscore = true, allowSpaces = false,
+                message = "code solo permite letras, numeros (incluye tildes/ñ) y representar espacios con el caracter _ (underscore) ; no se admite la palabra 'null' ni caracteres especiales") String code,
+
+
+        @NotNull(message = "name no puede ser nulo")
+        @SafeText(allowNumbers = true, allowUnderscore = false, allowSpaces = true,
+                message = "name solo permite letras, numeros (incluye tildes/ñ) y espacios; no se admite la palabra 'null' ni caracteres especiales, no debe estar vacio")
+        String name,
+
+
+        CommerceValidationMode validationMode,
+
+        @NotNull(message = "description no puede ser nulo")
+        @NotBlank(message = "description no puede ser vacio")
+        @SafeText(allowNumbers = true, allowUnderscore = false, allowSpaces = true,
+                message = "description solo permite letras, numeros (incluye tildes/ñ) y espacios; no se admite la palabra 'null' ni caracteres especiales")
+        String description,
+
         String updatedBy
 ) {}

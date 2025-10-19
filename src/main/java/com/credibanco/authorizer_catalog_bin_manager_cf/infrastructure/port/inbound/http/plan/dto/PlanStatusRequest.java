@@ -1,10 +1,12 @@
 package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.plan.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 
 public record PlanStatusRequest(
-        @NotBlank @Pattern(regexp = "^[\\p{L}\\p{N}\\s]+$", message = "planCode no debe contener caracteres especiales") String planCode,
-        @NotBlank @Pattern(regexp = "[AI]", message = "status debe ser 'A' o 'I'") String status,
+        @NotNull(message = "status no puede ser nulo")
+        @NotBlank (message = "status no puede ser vacio")
+        @NotBlank @Pattern(regexp= "[AI]") String status,
         String updatedBy
 ) {}

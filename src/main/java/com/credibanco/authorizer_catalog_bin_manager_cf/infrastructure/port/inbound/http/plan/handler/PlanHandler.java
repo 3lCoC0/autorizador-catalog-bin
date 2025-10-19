@@ -84,7 +84,7 @@ public class PlanHandler {
         log.info("create plan - IN cid={}", cid);
 
         return req.bodyToMono(PlanCreateRequest.class)
-                .flatMap(r -> validation.validate(r, AppError.PLAN_INVALID_DATA)) // ← "18"
+                .flatMap(r -> validation.validate(r, AppError.PLAN_INVALID_DATA))
                 .flatMap(r -> resolveUser(req, r.updatedBy(), "plan.create")
                         .defaultIfEmpty("")
                         .flatMap(user -> {
@@ -144,7 +144,7 @@ public class PlanHandler {
                         .defaultIfEmpty("")
                         .flatMap(user -> {
                             log.info("plan.update - actor used={}", printableActor(user));
-                            return updateUC.execute(code, r.name(), r.description(), r.validationMode(),
+                            return updateUC.execute(code, r.name(), r.description(), String.valueOf(r.validationMode()),
                                     toNullable(user));
                         }))
                 .map(this::toResp)
@@ -156,6 +156,7 @@ public class PlanHandler {
 
     public Mono<ServerResponse> changeStatus(ServerRequest req) {
         String cid = req.headers().firstHeader(CorrelationWebFilter.CID);
+        var planCode = req.pathVariable("planCode");
         log.info("change plan status - IN cid={}", cid);
 
         return req.bodyToMono(PlanStatusRequest.class)
@@ -164,7 +165,7 @@ public class PlanHandler {
                         .defaultIfEmpty("")
                         .flatMap(user -> {
                             log.info("plan.changeStatus - actor used={}", printableActor(user));
-                            return changeStatusUC.execute(r.planCode(), r.status(),
+                            return changeStatusUC.execute(planCode, r.status(),
                                     toNullable(user));
                         }))
                 .map(this::toResp)

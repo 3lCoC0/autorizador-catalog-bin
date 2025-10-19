@@ -159,12 +159,22 @@ public class GlobalErrorHandler implements ErrorWebExceptionHandler {
         return path != null && path.startsWith("/bins/");
     }
 
+    private boolean isPlanPath(String path) {
+        return path != null && path.startsWith("/plans");
+    }
+
     private MappedError mapFallbackValidation(String path) {
         if (isBinPath(path)) {
             return new MappedError(AppError.BIN_INVALID_DATA, AppError.BIN_INVALID_DATA.defaultMessage);
         }
+        if (isPlanPath(path)) {
+            return new MappedError(AppError.PLAN_INVALID_DATA, AppError.PLAN_INVALID_DATA.defaultMessage);
+        }
+
         return new MappedError(AppError.INTERNAL, "Solicitud inválida");
     }
+
+
 
     private MappedError mapFallbackNotFound(String path) {
         if (isBinPath(path)) {
@@ -213,6 +223,10 @@ public class GlobalErrorHandler implements ErrorWebExceptionHandler {
             return (m != null && !m.isBlank()) ? m.trim() : trimOrNull(ife.getMessage());
         }
         if (t instanceof ValueInstantiationException vie) {
+            String iae = illegalArgumentMessage(vie);
+            if (StringUtils.hasText(iae)) {
+                return iae;
+            }
             String m = vie.getOriginalMessage();
             return (m != null && !m.isBlank()) ? m.trim() : trimOrNull(vie.getMessage());
         }
@@ -223,6 +237,17 @@ public class GlobalErrorHandler implements ErrorWebExceptionHandler {
         return (s == null) ? null : s.trim();
     }
 
+
+    private static String illegalArgumentMessage(Throwable t) {
+        Throwable cursor = t;
+        while (cursor != null) {
+            if (cursor instanceof IllegalArgumentException iae && StringUtils.hasText(iae.getMessage())) {
+                return iae.getMessage().trim();
+            }
+            cursor = cursor.getCause();
+        }
+        return null;
+    }
 
     private static String safeMessage(String given, String fallback) {
         if (StringUtils.hasText(given)) return truncate(given.trim(), 500);
@@ -240,30 +265,39 @@ public class GlobalErrorHandler implements ErrorWebExceptionHandler {
         // 1) Si es DecodingException o ServerWebInputException, intenta sacar el mensaje de Jackson
         if (ex instanceof DecodingException || ex instanceof ServerWebInputException) {
             // Primero, busca la causa más específica
+            // Recorre toda la cadena buscando mensajes "originales" de Jackson
+            Throwable cursor = ex;
+            while (cursor != null) {
+                String jm = jacksonMessageOrNull(cursor);
+                if (StringUtils.hasText(jm)) {
+                    return truncate(jm, 500);
+                }
+                cursor = cursor.getCause();
+            }
+
             Throwable root = mostSpecific(ex);
             // Intenta extraer el “originalMessage” de Jackson
-            String jm = jacksonMessageOrNull(root);
-            if (StringUtils.hasText(jm)) return truncate(jm, 500);
-            // A veces la causa directa útil está un nivel arriba
-            if (ex.getCause() != null) {
-                jm = jacksonMessageOrNull(ex.getCause());
-                if (StringUtils.hasText(jm)) return truncate(jm, 500);
+            String rootMessage = trimOrNull(root.getMessage());
+            if (StringUtils.hasText(rootMessage)) {
+                return truncate(rootMessage, 500);
             }
         }
 
 
         // Busca un mensaje razonable en la cadena de causas (IllegalArgumentException, etc.)
+        String responseStatusReason = null;
         Throwable t = ex;
         while (t != null) {
             if (t instanceof IllegalArgumentException && StringUtils.hasText(t.getMessage())) {
-                return t.getMessage();
+                return truncate(t.getMessage(), 500);
             }
-            if (t instanceof ResponseStatusException rse && StringUtils.hasText(rse.getReason())) {
-                return rse.getReason();
+            if (responseStatusReason == null && t instanceof ResponseStatusException rse
+                    && StringUtils.hasText(rse.getReason())) {
+                responseStatusReason = truncate(rse.getReason(), 500);
             }
             t = t.getCause();
         }
-        return null; // lo rellenará safeMessage(...)
+        return responseStatusReason; // lo rellenará safeMessage(...) si sigue null
     }
 
     private boolean isTimeout(Throwable ex) {

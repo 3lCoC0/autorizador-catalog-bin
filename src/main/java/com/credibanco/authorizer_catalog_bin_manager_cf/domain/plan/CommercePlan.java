@@ -44,7 +44,7 @@ public record CommercePlan(
         require(newName, "name");
         var mode = (newValidationMode == null)
                 ? this.validationMode
-                : CommerceValidationMode.valueOf(newValidationMode.trim().toUpperCase());
+                : CommerceValidationMode.fromJson(newValidationMode);
         return new CommercePlan(
                 planId, code, newName, mode, newDescription,
                 status, createdAt, OffsetDateTime.now(), by

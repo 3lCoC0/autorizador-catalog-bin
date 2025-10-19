@@ -24,7 +24,7 @@ public class PlanRouter {
                 .POST("/plans/create", accept(MediaType.APPLICATION_JSON), handler::create)
                 .GET ("/plans/list",  accept(MediaType.APPLICATION_JSON), handler::list)
                 .GET ("/plans/get/{code}", accept(MediaType.APPLICATION_JSON), handler::get)
-                .PUT ("/plans/update/status", accept(MediaType.APPLICATION_JSON), handler::changeStatus)
+                .PUT ("/plans/update/status/{planCode}", accept(MediaType.APPLICATION_JSON), handler::changeStatus)
                 .PUT ("/plans/update/{code}", accept(MediaType.APPLICATION_JSON), handler::update)
 
 
