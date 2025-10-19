@@ -34,4 +34,5 @@ public class JpaSubtypeReadOnlyRepository implements
         return Mono.defer(() -> Mono.fromCallable(() -> repository.existsByIdSubtypeCodeAndBinEfectivo(code, binEfectivo)))
                 .subscribeOn(Schedulers.boundedElastic());
     }
+
 }

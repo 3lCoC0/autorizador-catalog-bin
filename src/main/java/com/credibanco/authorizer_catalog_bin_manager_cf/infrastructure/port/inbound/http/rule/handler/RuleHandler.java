@@ -41,7 +41,6 @@ public class RuleHandler {
         long t0 = System.nanoTime();
         return req.bodyToMono(ValidationCreateRequest.class)
                 .doOnSubscribe(s -> log.info("RULES:validation:create:recv"))
-                // ✅ nuevo validador con código "11"
                 .flatMap(r -> validation.validate(r, AppError.RULES_VALIDATION_INVALID_DATA))
                 .flatMap(r -> resolveUser(req, r.createdBy(), "rules.validation.create")
                         .defaultIfEmpty("")
@@ -62,13 +61,12 @@ public class RuleHandler {
                         .bodyValue(okEnvelope(req, "Operación exitosa", resp)));
     }
 
-    // RULES: Validation - update
+
     public Mono<ServerResponse> updateValidation(ServerRequest req) {
         long t0 = System.nanoTime();
         var code = req.pathVariable("code");
         return req.bodyToMono(ValidationUpdateRequest.class)
                 .doOnSubscribe(s -> log.info("RULES:validation:update:recv code={}", code))
-                // ✅ "11"
                 .flatMap(r -> validation.validate(r, AppError.RULES_VALIDATION_INVALID_DATA))
                 .flatMap(r -> resolveUser(req, r.updatedBy(), "rules.validation.update")
                         .defaultIfEmpty("")
@@ -89,7 +87,6 @@ public class RuleHandler {
         var code = req.pathVariable("code");
         return req.bodyToMono(ValidationStatusRequest.class)
                 .doOnSubscribe(s -> log.info("RULES:validation:status:recv code={}", code))
-                // ✅ "11"
                 .flatMap(r -> validation.validate(r, AppError.RULES_VALIDATION_INVALID_DATA))
                 .flatMap(r -> resolveUser(req, r.updatedBy(), "rules.validation.changeStatus")
                         .defaultIfEmpty("")
@@ -128,12 +125,11 @@ public class RuleHandler {
                 .doOnTerminate(() -> log.info("RULES:validation:list:done elapsedMs={}", ms(t0)));
     }
 
-    // RULES: Map/Attach rule
+
     public Mono<ServerResponse> attachRule(ServerRequest req) {
         long t0 = System.nanoTime();
         return req.bodyToMono(MapRuleRequest.class)
                 .doOnSubscribe(s -> log.info("RULES:map:attach:recv"))
-                // ✅ "14"
                 .flatMap(r -> validation.validate(r, AppError.RULES_MAP_INVALID_DATA))
                 .flatMap(r -> resolveUser(req, r.updatedBy(), "rules.map.attach")
                         .defaultIfEmpty("")
@@ -157,7 +153,6 @@ public class RuleHandler {
         var code= req.pathVariable("code");
         return req.bodyToMono(ValidationStatusRequest.class)
                 .doOnSubscribe(s -> log.info("RULES:map:status:recv st={} bin={} code={}", st, bin, code))
-                // ✅ "14"
                 .flatMap(r -> validation.validate(r, AppError.RULES_MAP_INVALID_DATA))
                 .flatMap(r -> resolveUser(req, r.updatedBy(), "rules.map.changeStatus")
                         .defaultIfEmpty("")

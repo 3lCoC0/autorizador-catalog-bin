@@ -89,7 +89,7 @@ public record CreateSubtypeService(
         if (available == null || available.isEmpty()) {
             return "OWNER_ID_TYPE no existe: " + ownerIdType + ". No hay tipos de identificación configurados.";
         }
-        return "OWNER_ID_TYPE no existe: " + ownerIdType + ". Valores permitidos: " + String.join(", ", available);
+        return "OWNER_ID_TYPE  "  + ownerIdType +  " no existe. Valores permitidos: " + String.join(", ", available);
     }
 
     private static String normalizeExtAgainstConfig(String bin, String rawExt, String uses, Integer digits) {

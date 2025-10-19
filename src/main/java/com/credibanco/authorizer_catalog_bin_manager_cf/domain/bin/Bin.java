@@ -49,7 +49,7 @@ public record Bin(
         int baseLen = bin.length();
         if ("Y".equals(usesBinExt)) {
             if (binExtDigits == null || !(binExtDigits == 1 || binExtDigits == 2 || binExtDigits == 3)) {
-                throw new IllegalArgumentException("binExtDigits debe ser 1, 2 o 3 cuando usesBinExt='Y'");
+                throw new IllegalArgumentException("binExtDigits debe ser 1, 2 o 3 cuando usesBinExt='Y', no debe estar vacio");
             }
             if (baseLen + binExtDigits > 9) {
                 throw new IllegalArgumentException("Entre el bin base y su extendido no se pueden usar mas de 9 digitos");

@@ -42,7 +42,7 @@ public class BinHandler {
             if (extDigits == null || (extDigits != 1 && extDigits != 2 && extDigits != 3)) {
                 return Mono.error(new AppException(
                         AppError.BIN_EXT_DIGITS_INVALID,
-                        "binExtDigits debe ser 1, 2 o 3 cuando usesBinExt='Y'"
+                        "binExtDigits debe ser 1, 2 o 3 cuando usesBinExt='Y',no debe estar vacio"
                 ));
             }
             int baseLen = (bin == null) ? 0 : bin.trim().length();

@@ -62,7 +62,7 @@ public record MapRuleService(
                         return Mono.<ValidationMap>error(new AppException(AppError.RULES_MAP_INVALID_DATA, iae.getMessage()));
                     }
 
-                    // evitar duplicado exacto (NK: subtypeCode, bin, validationId)
+
                     return maps.findByNaturalKey(subtypeCode, bin, v.validationId())
                             .flatMap(existing -> Mono.<ValidationMap>error(new AppException(
                                     AppError.RULES_MAP_ALREADY_EXISTS,
