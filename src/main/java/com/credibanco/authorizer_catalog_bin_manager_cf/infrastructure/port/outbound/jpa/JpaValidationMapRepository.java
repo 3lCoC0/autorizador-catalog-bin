@@ -89,10 +89,11 @@ public class JpaValidationMapRepository implements ValidationMapRepository {
     @Override
     public Mono<ValidationMap> findByNaturalKey(String subtypeCode, String bin, Long validationId) {
         return Mono.defer(() -> Mono.fromCallable(() -> repository
-                        .findBySubtypeCodeAndBinAndValidationId(subtypeCode, bin, validationId)
-                        .map(ValidationMapJpaMapper::toDomain)
-                        .orElseThrow(() -> new NoSuchElementException(
-                                "VALIDATION_MAP not found: subtype=" + subtypeCode + " bin=" + bin + " validation=" + validationId))))
+                                .findBySubtypeCodeAndBinAndValidationId(subtypeCode, bin, validationId))
+                        .flatMap(optional -> optional
+                                .map(ValidationMapJpaMapper::toDomain)
+                                .map(Mono::just)
+                                .orElseGet(Mono::empty)))
                 .subscribeOn(Schedulers.boundedElastic());
     }
 

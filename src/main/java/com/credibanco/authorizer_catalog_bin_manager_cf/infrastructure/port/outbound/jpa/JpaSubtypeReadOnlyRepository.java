@@ -30,8 +30,8 @@ public class JpaSubtypeReadOnlyRepository implements
     }
 
     @Override
-    public Mono<Boolean> existsByCodeAndBinEfectivo(String code, String binEfectivo) {
-        return Mono.defer(() -> Mono.fromCallable(() -> repository.existsByIdSubtypeCodeAndBinEfectivo(code, binEfectivo)))
+    public Mono<Boolean> existsByCodeAndBin(String code, String bin) {
+        return Mono.defer(() -> Mono.fromCallable(() -> repository.existsByIdSubtypeCodeAndIdBin(code, bin)))
                 .subscribeOn(Schedulers.boundedElastic());
     }
 

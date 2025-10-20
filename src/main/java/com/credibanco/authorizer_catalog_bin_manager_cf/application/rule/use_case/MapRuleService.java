@@ -33,7 +33,7 @@ public record MapRuleService(
                         ? Mono.empty()
                         : Mono.<Void>error(new AppException(AppError.SUBTYPE_NOT_FOUND)));
 
-        Mono<Void> ensurePair = subtypes.existsByCodeAndBinEfectivo(subtypeCode, bin)
+        Mono<Void> ensurePair = subtypes.existsByCodeAndBin(subtypeCode, bin)
                 .flatMap(ok -> ok
                         ? Mono.empty()
                         : Mono.<Void>error(new AppException(AppError.BIN_NOT_FOUND
