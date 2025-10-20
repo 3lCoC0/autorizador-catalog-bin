@@ -1,6 +1,7 @@
 package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.logging;
 
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.MDC;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -13,6 +14,7 @@ import reactor.util.context.ContextView;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.Locale;
 
 @Slf4j
 @Component
@@ -23,14 +25,16 @@ public class CorrelationWebFilter implements WebFilter {
     public static final String CTX_CID = "ctx.correlationId";
     public static final String CTX_USER = "ctx.userId";
 
+    @NotNull
     @Override
-    public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+    public Mono<Void> filter(ServerWebExchange exchange, @NotNull WebFilterChain chain) {
         // 1) Obtener/crear correlation id y user desde headers
         String cid = Optional.ofNullable(exchange.getRequest().getHeaders().getFirst(CID))
-                .filter(s -> !s.isBlank())
-                .orElse(UUID.randomUUID().toString());
-        String user = Optional.ofNullable(exchange.getRequest().getHeaders().getFirst("X-User"))
-                .orElse(null);
+                .map(String::trim)
+                .filter(value -> !value.isEmpty())
+                .filter(value -> !isDemoPlaceholder(value))
+                .orElseGet(() -> UUID.randomUUID().toString());
+        String user = exchange.getRequest().getHeaders().getFirst("X-User");
 
         if (log.isInfoEnabled()) {
             log.info("correlation filter - IN method={} path={} cid={} headerUser={}",
@@ -63,5 +67,10 @@ public class CorrelationWebFilter implements WebFilter {
                     var withCid = ctx.put(CTX_CID, cid);
                     return (user != null) ? withCid.put(CTX_USER, user) : withCid;
                 });
+    }
+
+    private static boolean isDemoPlaceholder(String value) {
+        return value != null
+                && value.toLowerCase(Locale.ROOT).startsWith("demo-cid");
     }
 }

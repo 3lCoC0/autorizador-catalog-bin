@@ -67,8 +67,13 @@ public class GlobalErrorHandler implements ErrorWebExceptionHandler {
         var request = exchange.getRequest();
         String path = request.getPath().pathWithinApplication().value();
 
-        String cid = request.getHeaders().getFirst(HDR_CID);
-        if (!StringUtils.hasText(cid)) cid = UUID.randomUUID().toString();
+        String cid = response.getHeaders().getFirst(HDR_CID);
+        if (!StringUtils.hasText(cid)) {
+            cid = request.getHeaders().getFirst(HDR_CID);
+        }
+        if (!StringUtils.hasText(cid)) {
+            cid = UUID.randomUUID().toString();
+        }
         response.getHeaders().set(HDR_CID, cid);
 
         // --- Mapeo principal a AppError + mensaje

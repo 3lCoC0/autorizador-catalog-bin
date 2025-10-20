@@ -29,7 +29,7 @@ public record CreateAgencyService(AgencyRepository repo,
                                 ? Mono.error(new AppException(AppError.AGENCY_ALREADY_EXISTS))
                                 : repo.save(draft))
                         : Mono.error(new AppException(AppError.SUBTYPE_NOT_FOUND,
-                        "subtypeCode=" + draft.subtypeCode())))
+                        "No se encontró el SUBTYPE  " + draft.subtypeCode())))
                 .onErrorMap(IllegalArgumentException.class,
                         e -> new AppException(AppError.AGENCY_INVALID_DATA, e.getMessage()))
                 .doOnSuccess(a -> log.info("UC:Agency:Create:done st={} ag={} status={} elapsedMs={}",

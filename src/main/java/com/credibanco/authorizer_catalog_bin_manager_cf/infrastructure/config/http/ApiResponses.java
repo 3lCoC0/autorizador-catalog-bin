@@ -12,9 +12,10 @@ public final class ApiResponses {
 
     public static String cid(ServerRequest req) {
         String fromResp = req.exchange().getResponse().getHeaders().getFirst(CorrelationWebFilter.CID);
-        return (fromResp != null && !fromResp.isBlank())
-                ? fromResp
-                : req.headers().firstHeader(CorrelationWebFilter.CID);
+        if (fromResp != null && !fromResp.isBlank()) {
+            return fromResp;
+        }
+        return req.headers().firstHeader(CorrelationWebFilter.CID);
     }
 
     public static <T> ApiSuccess<T> okEnvelope(ServerRequest req, String detail, T data) {

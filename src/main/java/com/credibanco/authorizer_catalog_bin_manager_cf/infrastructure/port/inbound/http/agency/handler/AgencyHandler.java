@@ -8,6 +8,7 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.agency.dto.*;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.common.RequestActorResolver;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.validation.ValidationUtil;
+import com.credibanco.authorizer_catalog_bin_manager_cf.shared.validation.TextNormalizer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -63,25 +64,28 @@ public class AgencyHandler {
         return (value != null && !value.isBlank()) ? value : null;
     }
 
+    private String normalize(String value) {
+        return TextNormalizer.uppercaseAndRemoveAccents(value);
+    }
+
     public Mono<ServerResponse> create(ServerRequest req) {
         long t0 = System.nanoTime();
         return req.bodyToMono(AgencyCreateRequest.class)
                 .doOnSubscribe(s -> log.info("AGENCY:create:recv"))
-                // ✅ validar con código "07"
                 .flatMap(r -> validation.validate(r, AppError.AGENCY_INVALID_DATA)
                         .flatMap(valid -> resolveUser(req, valid.createdBy(), "agency.create")
                                 .defaultIfEmpty("")
                                 .map(user -> {
                                     log.info("agency.create - actor used={}", printableActor(user));
                                     return Agency.createNew(
-                                            valid.subtypeCode(), valid.agencyCode(), valid.name(),
-                                            valid.agencyNit(), valid.address(), valid.phone(), valid.municipalityDaneCode(),
-                                            valid.embosserHighlight(), valid.embosserPins(),
-                                            valid.cardCustodianPrimary(), valid.cardCustodianPrimaryId(),
-                                            valid.cardCustodianSecondary(), valid.cardCustodianSecondaryId(),
-                                            valid.pinCustodianPrimary(), valid.pinCustodianPrimaryId(),
-                                            valid.pinCustodianSecondary(), valid.pinCustodianSecondaryId(),
-                                            valid.description(), toNullable(user) // opcional X-User
+                                            normalize(valid.subtypeCode()), normalize(valid.agencyCode()), normalize(valid.name()),
+                                            normalize(valid.agencyNit()), normalize(valid.address()), normalize(valid.phone()), normalize(valid.municipalityDaneCode()),
+                                            normalize(valid.embosserHighlight()), normalize(valid.embosserPins()),
+                                            normalize(valid.cardCustodianPrimary()), normalize(valid.cardCustodianPrimaryId()),
+                                            normalize(valid.cardCustodianSecondary()), normalize(valid.cardCustodianSecondaryId()),
+                                            normalize(valid.pinCustodianPrimary()), normalize(valid.pinCustodianPrimaryId()),
+                                            normalize(valid.pinCustodianSecondary()), normalize(valid.pinCustodianSecondaryId()),
+                                            normalize(valid.description()), toNullable(user)
                                     );
                                 })))
                 .onErrorMap(IllegalArgumentException.class,
@@ -99,26 +103,25 @@ public class AgencyHandler {
 
     public Mono<ServerResponse> update(ServerRequest req) {
         long t0 = System.nanoTime();
-        String subtypeCode = req.pathVariable("subtypeCode");
-        String agencyCode  = req.pathVariable("agencyCode");
+        String subtypeCode = normalize(req.pathVariable("subtypeCode"));
+        String agencyCode  = normalize(req.pathVariable("agencyCode"));
 
         return req.bodyToMono(AgencyUpdateRequest.class)
                 .doOnSubscribe(s -> log.info("AGENCY:update:recv st={} ag={}", subtypeCode, agencyCode))
-                // ✅ validar con código "07"
                 .flatMap(r -> validation.validate(r, AppError.AGENCY_INVALID_DATA)
                         .flatMap(valid -> resolveUser(req, valid.updatedBy(), "agency.update")
                                 .defaultIfEmpty("")
                                 .map(user -> {
                                     log.info("agency.update - actor used={}", printableActor(user));
                                     return new Agency(
-                                            subtypeCode, agencyCode, valid.name(),
-                                            valid.agencyNit(), valid.address(), valid.phone(), valid.municipalityDaneCode(),
-                                            valid.embosserHighlight(), valid.embosserPins(),
-                                            valid.cardCustodianPrimary(), valid.cardCustodianPrimaryId(),
-                                            valid.cardCustodianSecondary(), valid.cardCustodianSecondaryId(),
-                                            valid.pinCustodianPrimary(), valid.pinCustodianPrimaryId(),
-                                            valid.pinCustodianSecondary(), valid.pinCustodianSecondaryId(),
-                                            valid.description(), "A", null, null, toNullable(user)
+                                            subtypeCode, agencyCode, normalize(valid.name()),
+                                            normalize(valid.agencyNit()), normalize(valid.address()), normalize(valid.phone()), normalize(valid.municipalityDaneCode()),
+                                            normalize(valid.embosserHighlight()), normalize(valid.embosserPins()),
+                                            normalize(valid.cardCustodianPrimary()), normalize(valid.cardCustodianPrimaryId()),
+                                            normalize(valid.cardCustodianSecondary()), normalize(valid.cardCustodianSecondaryId()),
+                                            normalize(valid.pinCustodianPrimary()), normalize(valid.pinCustodianPrimaryId()),
+                                            normalize(valid.pinCustodianSecondary()), normalize(valid.pinCustodianSecondaryId()),
+                                            normalize(valid.description()), "A", null, null, toNullable(user)
                                     );
                                 })))
                 .onErrorMap(IllegalArgumentException.class,
@@ -134,19 +137,18 @@ public class AgencyHandler {
 
     public Mono<ServerResponse> changeStatus(ServerRequest req) {
         long t0 = System.nanoTime();
-        String subtypeCode = req.pathVariable("subtypeCode");
-        String agencyCode  = req.pathVariable("agencyCode");
+        String subtypeCode = normalize(req.pathVariable("subtypeCode"));
+        String agencyCode  = normalize(req.pathVariable("agencyCode"));
 
         return req.bodyToMono(AgencyStatusRequest.class)
                 .doOnSubscribe(s -> log.info("AGENCY:status:recv st={} ag={}", subtypeCode, agencyCode))
-                // ✅ validar con código "07"
                 .flatMap(r -> validation.validate(r, AppError.AGENCY_INVALID_DATA)
                         .flatMap(valid -> resolveUser(req, valid.updatedBy(), "agency.changeStatus")
                                 .defaultIfEmpty("")
                                 .flatMap(user -> {
                                     log.info("agency.changeStatus - actor used={}", printableActor(user));
                                     return changeStatusUC.execute(
-                                            subtypeCode, agencyCode, valid.status(), toNullable(user));
+                                            subtypeCode, agencyCode, normalize(valid.status()), toNullable(user));
                                 })))
                 .map(this::toResponse)
                 .doOnSuccess(a -> log.info("AGENCY:status:done st={} ag={} newStatus={} elapsedMs={}",
@@ -159,8 +161,8 @@ public class AgencyHandler {
 
     public Mono<ServerResponse> get(ServerRequest req) {
         long t0 = System.nanoTime();
-        String subtypeCode = req.pathVariable("subtypeCode");
-        String agencyCode  = req.pathVariable("agencyCode");
+        String subtypeCode = normalize(req.pathVariable("subtypeCode"));
+        String agencyCode  = normalize(req.pathVariable("agencyCode"));
         log.info("AGENCY:get:recv st={} ag={}", subtypeCode, agencyCode);
         return getUC.execute(subtypeCode, agencyCode)
                 .map(this::toResponse)
