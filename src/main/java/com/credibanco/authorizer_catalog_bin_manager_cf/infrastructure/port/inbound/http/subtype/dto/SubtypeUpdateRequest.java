@@ -28,9 +28,8 @@ public record SubtypeUpdateRequest(
         @Pattern(regexp="\\d*", message="ownerIdNumber debe ser numérico") String ownerIdNumber,
 
 
-        @NotNull(message = "binExt no puede ser nulo")
-        @NotBlank(message = "binExt no puede ser vacio")
-        @Pattern(regexp="\\d*", message="binExt debe ser numérico") String binExt,
+        @BlankAsNull
+        @Pattern(regexp="\\d*", message="binExt debe ser numérico, o dejar el campo en blanco cuando no tiene ext") String binExt,
 
         String updatedBy
 ) {}
