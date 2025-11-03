@@ -6,7 +6,6 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.config.se
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppError;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppException;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.bin.dto.*;
-import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.common.RequestActorResolver;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.validation.ValidationUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +17,7 @@ import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
 
 import static com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.config.http.ApiResponses.*;
+import com.credibanco.authorizer_catalog_bin_manager_cf.shared.validation.TextNormalizer;
 
 @Slf4j
 @Component
@@ -77,20 +77,30 @@ public class BinHandler {
         long t0 = System.nanoTime();
         return req.bodyToMono(BinCreateRequest.class)
                 .flatMap(r -> validation.validate(r, AppError.BIN_INVALID_DATA)) // "01"
-                .flatMap(r -> checkExtConstraints(r.bin(), r.usesBinExt(), r.binExtDigits())
-                        .onErrorMap(IllegalArgumentException.class,
-                                e -> new AppException(AppError.BIN_INVALID_DATA, e.getMessage()))
-                        .then(resolveUser(req, r.createdBy(), "bin.create")
-                                .defaultIfEmpty("")
-                                .flatMap(user -> {
-                                    log.info("bin.create - actor used={}", printableActor(user));
-                                    return createUC.execute(
-                                            r.bin(), r.name(), r.typeBin(), r.typeAccount(),
-                                            r.compensationCod(), r.description(),
-                                            r.usesBinExt(), r.binExtDigits(),
-                                            toNullable(user));
-                                }))
-                )
+                .flatMap(r -> {
+                    String bin = normalize(r.bin());
+                    String name = normalize(r.name());
+                    String typeBin = normalize(r.typeBin());
+                    String typeAccount = normalize(r.typeAccount());
+                    String compensationCod = normalize(r.compensationCod());
+                    String description = normalize(r.description());
+                    String usesBinExt = normalize(r.usesBinExt());
+                    Integer binExtDigits = r.binExtDigits();
+
+                    return checkExtConstraints(bin, usesBinExt, binExtDigits)
+                            .onErrorMap(IllegalArgumentException.class,
+                                    e -> new AppException(AppError.BIN_INVALID_DATA, e.getMessage()))
+                            .then(resolveUser(req, r.createdBy(), "bin.create")
+                                    .defaultIfEmpty("")
+                                    .flatMap(user -> {
+                                        log.info("bin.create - actor used={}", printableActor(user));
+                                        return createUC.execute(
+                                                bin, name, typeBin, typeAccount,
+                                                compensationCod, description,
+                                                usesBinExt, binExtDigits,
+                                                toNullable(user));
+                                    }));
+                })
                 .doOnSuccess(b -> log.info("BIN:create:done bin={}, status={}, elapsedMs={}",
                         b.bin(), b.status(), elapsedMs(t0)))
                 .map(this::toResponse)
@@ -120,20 +130,29 @@ public class BinHandler {
                 .doOnSubscribe(s -> log.info("BIN:update:recv"))
                 .flatMap(r -> validation.validate(r, AppError.BIN_INVALID_DATA))
                 .flatMap(r -> {
+
+                    String bin = normalize(r.bin());
+                    String name = normalize(r.name());
+                    String typeBin = normalize(r.typeBin());
+                    String typeAccount = normalize(r.typeAccount());
+                    String compensationCod = normalize(r.compensationCod());
+                    String description = normalize(r.description());
+                    String usesBinExt = normalize(r.usesBinExt());
+                    Integer binExtDigits = r.binExtDigits();
                     log.debug("BIN:update:validated bin={}, usesExt={}, extDigits={}",
-                            r.bin(), r.usesBinExt(), r.binExtDigits());
+                            bin, usesBinExt, binExtDigits);
 
                     return resolveUser(req, r.createdBy(), "bin.update")
                             .defaultIfEmpty("")
                             .flatMap(user -> {
                                 log.info("bin.update - actor used={}", printableActor(user));
-                                return checkExtConstraints(r.bin(), r.usesBinExt(), r.binExtDigits())
+                                return checkExtConstraints(bin, usesBinExt, binExtDigits)
                                     .onErrorMap(IllegalArgumentException.class,
                                             e -> new AppException(AppError.BIN_INVALID_DATA, e.getMessage()))
                                     .then(updateUC.execute(
-                                            r.bin(), r.name(), r.typeBin(), r.typeAccount(),
-                                            r.compensationCod(), r.description(),
-                                            r.usesBinExt(), r.binExtDigits(),
+                                            bin, name, typeBin, typeAccount,
+                                            compensationCod, description,
+                                            usesBinExt, binExtDigits,
                                             toNullable(user)
                                     ));
                             });
@@ -214,6 +233,10 @@ public class BinHandler {
 
     private String printableActor(String actor) {
         return StringUtils.hasText(actor) ? actor : "<none>";
+    }
+
+    private String normalize(String value) {
+        return TextNormalizer.uppercaseAndRemoveAccents(value);
     }
 
     private String toNullable(String value) {

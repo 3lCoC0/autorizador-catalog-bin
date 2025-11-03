@@ -1,4 +1,3 @@
-// infrastructure/port/inbound/http/subtype/handler/SubtypeHandler.java
 package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.subtype.handler;
 
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.subtype.port.inbound.*;
@@ -17,6 +16,7 @@ import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
 
 import static com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.config.http.ApiResponses.*;
+import com.credibanco.authorizer_catalog_bin_manager_cf.shared.validation.TextNormalizer;
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -54,6 +54,10 @@ public class SubtypeHandler {
                         .doOnNext(user -> log.info("{} - actor from security context: {}", operation, user)));
     }
 
+    private String normalize(String value) {
+        return TextNormalizer.uppercaseAndRemoveAccents(value);
+    }
+
     private String printableActor(String user) {
         return (user == null || user.isBlank()) ? "<none>" : user;
     }
@@ -79,15 +83,22 @@ public class SubtypeHandler {
                 .doOnSubscribe(s -> log.info("SUBTYPE:create:recv"))
                 .flatMap(r -> validation.validate(r, AppError.SUBTYPE_INVALID_DATA)
                         .flatMap(valid -> {
+                            String subtypeCode = normalize(valid.subtypeCode());
+                            String bin = normalize(valid.bin());
+                            String name = normalize(valid.name());
+                            String description = normalize(valid.description());
+                            String ownerIdType = normalize(valid.ownerIdType());
+                            String ownerIdNumber = normalize(valid.ownerIdNumber());
+                            String binExt = normalize(valid.binExt());
                             log.debug("SUBTYPE:create:validated bin={} code={} ownerType={} ext='{}'",
-                                    valid.bin(), valid.subtypeCode(), valid.ownerIdType(), valid.binExt());
+                                    bin, subtypeCode, ownerIdType, binExt);
                             return resolveUser(req, valid.createdBy(), "subtype.create")
                                     .defaultIfEmpty("")
                                     .flatMap(user -> {
                                         log.info("subtype.create - actor used={}", printableActor(user));
                                         return createUC.execute(
-                                                valid.subtypeCode(), valid.bin(), valid.name(), valid.description(),
-                                                valid.ownerIdType(), valid.ownerIdNumber(), valid.binExt(),
+                                                subtypeCode, bin, name, description,
+                                                ownerIdType, ownerIdNumber, binExt,
                                                 toNullable(user)
                                         );
                                     });
@@ -125,22 +136,30 @@ public class SubtypeHandler {
 
     public Mono<ServerResponse> update(ServerRequest req) {
         long t0 = System.nanoTime();
-        String bin  = req.pathVariable("bin");
-        String code = req.pathVariable("code");
+        String binRaw  = req.pathVariable("bin");
+        String codeRaw = req.pathVariable("code");
+        String bin = normalize(binRaw);
+        String code = normalize(codeRaw);
 
         return req.bodyToMono(SubtypeUpdateRequest.class)
                 .doOnSubscribe(s -> log.info("SUBTYPE:update:recv bin={} code={}", bin, code))
                 .flatMap(r -> validation.validate(r, AppError.SUBTYPE_INVALID_DATA)
                         .flatMap(valid -> {
-                            log.debug("SUBTYPE:update:validated bin={} code={} ext='{}'", bin, code, valid.binExt());
+                            String name = normalize(valid.name());
+                            String description = normalize(valid.description());
+                            String ownerIdType = normalize(valid.ownerIdType());
+                            String ownerIdNumber = normalize(valid.ownerIdNumber());
+                            String binExt = normalize(valid.binExt());
+
+                            log.debug("SUBTYPE:update:validated bin={} code={} ext='{}'", bin, code, binExt);
                             return resolveUser(req, valid.updatedBy(), "subtype.update")
                                     .defaultIfEmpty("")
                                     .flatMap(user -> {
                                         log.info("subtype.update - actor used={}", printableActor(user));
                                         return updateUC.execute(
-                                                bin, code, valid.name(), valid.description(),
-                                                valid.ownerIdType(), valid.ownerIdNumber(), valid.binExt(),
-                                                toNullable(user) // opcional
+                                                bin, code, name, description,
+                                                ownerIdType, ownerIdNumber, binExt,
+                                                toNullable(user)
                                         );
                                     });
                         }))
