@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import java.util.stream.Stream;
 
 import java.util.*;
 
@@ -58,12 +59,30 @@ public record AddPlanItemService(CommercePlanRepository planRepo,
 
     @Override
     public Mono<PlanItemsBulkResult> addMany(String planCode, List<String> rawValues, String by) {
+        List<String> original = rawValues == null ? List.of() : rawValues;
         log.info("AddPlanItemService IN (bulk) planCode={} count={} by={}", planCode,
-                rawValues == null ? 0 : rawValues.size(), by);
+                original.size(), by);
 
-        List<String> cleaned = (rawValues == null ? List.<String>of() : rawValues).stream()
+        List<String> normalized = new ArrayList<>();
+        List<String> invalidNullOrBlank = new ArrayList<>();
+
+        for (String value : original) {
+            if (value == null) {
+                invalidNullOrBlank.add("null");
+                continue;
+            }
+
+            String trimmed = value.trim();
+            if (trimmed.isEmpty()) {
+                invalidNullOrBlank.add(value);
+                continue;
+            }
+
+            normalized.add(trimmed);
+        }
+
+        List<String> cleaned = normalized.stream()
                 .filter(Objects::nonNull)
-                .map(String::trim)
                 .filter(s -> !s.isBlank())
                 .distinct()
                 .toList();
@@ -73,11 +92,12 @@ public record AddPlanItemService(CommercePlanRepository planRepo,
                         new AppException(AppError.PLAN_NOT_FOUND)))
                 .flatMap(plan -> {
                     var mode = plan.validationMode();
-
-                    List<String> invalid = cleaned.stream()
+                    List<String> invalidByMode = cleaned.stream()
                             .filter(v -> !isValid(mode, v))
                             .toList();
-                    Set<String> invalidSet = new HashSet<>(invalid);
+                    List<String> invalid = Stream.concat(invalidNullOrBlank.stream(), invalidByMode.stream())
+                            .toList();
+                    Set<String> invalidSet = new HashSet<>(invalidByMode);
 
                     List<String> candidates = cleaned.stream()
                             .filter(v -> !invalidSet.contains(v))
@@ -97,7 +117,7 @@ public record AddPlanItemService(CommercePlanRepository planRepo,
                                 if (toInsert.isEmpty()) {
                                     return Mono.just(new PlanItemsBulkResult(
                                             plan.code(),
-                                            rawValues == null ? 0 : rawValues.size(),
+                                            original.size(),
                                             0,
                                             duplicates.size(),
                                             invalid.size(),
@@ -109,7 +129,7 @@ public record AddPlanItemService(CommercePlanRepository planRepo,
                                 return insertBatches(plan.planId(), mode, toInsert, by)
                                         .map(inserted -> new PlanItemsBulkResult(
                                                 plan.code(),
-                                                rawValues.size(),
+                                                original.size(),
                                                 inserted,
                                                 duplicates.size(),
                                                 invalid.size(),
