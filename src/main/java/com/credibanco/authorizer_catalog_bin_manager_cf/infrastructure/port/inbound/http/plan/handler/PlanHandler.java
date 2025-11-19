@@ -22,6 +22,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import com.credibanco.authorizer_catalog_bin_manager_cf.shared.validation.TextNormalizer;
 
 @Slf4j
 @Component
@@ -85,15 +86,21 @@ public class PlanHandler {
 
         return req.bodyToMono(PlanCreateRequest.class)
                 .flatMap(r -> validation.validate(r, AppError.PLAN_INVALID_DATA))
-                .flatMap(r -> resolveUser(req, r.updatedBy(), "plan.create")
+                .flatMap(r -> {
+                    String code = normalize(r.code());
+                    String name = normalize(r.name());
+                    String description = normalize(r.description());
+
+                    return resolveUser(req, r.updatedBy(), "plan.create")
                         .defaultIfEmpty("")
                         .flatMap(user -> {
                             log.info("plan.create - actor used={}", printableActor(user));
                             return createUC.execute(
-                                    r.code(), r.name(), r.validationMode(), r.description(),
+                                    code, name, r.validationMode(), description,
                                     toNullable(user)
                             );
-                        }))
+                        });
+                })
                 .map(this::toResp)
                 .flatMap(resp -> {
                     log.info("create plan - OK cid={} code={}", cid, resp.code());
@@ -103,7 +110,7 @@ public class PlanHandler {
     }
 
     public Mono<ServerResponse> get(ServerRequest req) {
-        String code = req.pathVariable("code");
+        String code = normalize(req.pathVariable("code"));
         String cid = req.headers().firstHeader(CorrelationWebFilter.CID);
         log.info("get plan - IN cid={} code={}", cid, code);
 
@@ -116,8 +123,8 @@ public class PlanHandler {
     }
 
     public Mono<ServerResponse> list(ServerRequest req) {
-        var status = req.queryParam("status").orElse(null);
-        var q      = req.queryParam("q").orElse(null);
+        var status = req.queryParam("status").map(this::normalize).orElse(null);
+        var q      = req.queryParam("q").map(this::normalize).orElse(null);
         int page   = req.queryParam("page").map(Integer::parseInt).orElse(0);
         int size   = req.queryParam("size").map(Integer::parseInt).orElse(20);
 
@@ -134,19 +141,24 @@ public class PlanHandler {
     }
 
     public Mono<ServerResponse> update(ServerRequest req) {
-        var code = req.pathVariable("code");
+        var code = normalize(req.pathVariable("code"));
         String cid = req.headers().firstHeader(CorrelationWebFilter.CID);
         log.info("update plan - IN cid={} code={}", cid, code);
 
         return req.bodyToMono(PlanUpdateRequest.class)
-                .flatMap(r -> validation.validate(r, AppError.PLAN_INVALID_DATA)) // ← "18"
-                .flatMap(r -> resolveUser(req, r.updatedBy(), "plan.update")
+                .flatMap(r -> validation.validate(r, AppError.PLAN_INVALID_DATA))
+                .flatMap(r -> {
+                    String name = normalize(r.name());
+                    String description = normalize(r.description());
+
+                    return resolveUser(req, r.updatedBy(), "plan.update")
                         .defaultIfEmpty("")
                         .flatMap(user -> {
                             log.info("plan.update - actor used={}", printableActor(user));
-                            return updateUC.execute(code, r.name(), r.description(), String.valueOf(r.validationMode()),
+                            return updateUC.execute(code, name, description, String.valueOf(r.validationMode()),
                                     toNullable(user));
-                        }))
+                        });
+                })
                 .map(this::toResp)
                 .flatMap(resp -> {
                     log.info("update plan - OK cid={} code={}", cid, code);
@@ -370,4 +382,7 @@ public class PlanHandler {
                 l.subtypeCode(), l.planId(), l.createdAt(), l.updatedAt(), l.updatedBy()
         );
     }
+        private String normalize(String value) {
+            return TextNormalizer.uppercaseAndRemoveAccents(value);
+        }
 }

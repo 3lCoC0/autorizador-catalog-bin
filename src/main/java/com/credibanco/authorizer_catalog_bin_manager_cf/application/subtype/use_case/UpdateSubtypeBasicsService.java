@@ -113,6 +113,10 @@ public record UpdateSubtypeBasicsService(
 
             return d;
         } else {
+
+            if (rawExt != null && !rawExt.isBlank()) {
+                throw new IllegalArgumentException("bin_ext no está permitido para este BIN");
+            }
             return null;
         }
     }

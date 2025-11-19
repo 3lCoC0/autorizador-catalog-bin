@@ -68,8 +68,9 @@ public record CreateSubtypeService(
                             ? binRepo.existsById(draft.binEfectivo()) : Mono.just(false);
                     Mono<Boolean> pkExists = repo.existsByPk(draft.bin(), draft.subtypeCode());
                     Mono<Boolean> extExists = (normExt != null) ? repo.existsByBinAndExt(draft.bin(), normExt) : Mono.just(false);
+                    Mono<Boolean> codeExists = repo.existsBySubtypeCode(draft.subtypeCode());
 
-                    return Mono.zip(bin9Collision, pkExists, extExists)
+                    return Mono.zip(bin9Collision, pkExists, extExists, codeExists)
                             .flatMap(z -> {
                                 if (z.getT1()) return Mono.error(new AppException(AppError.BIN_ALREADY_EXISTS,
                                         "Colisión: ya existe BIN maestro " + draft.binEfectivo()));
@@ -77,6 +78,8 @@ public record CreateSubtypeService(
                                         "Ya existe SUBTYPE para ese BIN y código"));
                                 if (z.getT3()) return Mono.error(new AppException(AppError.SUBTYPE_ALREADY_EXISTS,
                                         "bin_ext ya usado para ese BIN"));
+                                if (z.getT4()) return Mono.error(new AppException(AppError.SUBTYPE_ALREADY_EXISTS,
+                                        "Ya existe SUBTYPE con ese código"));
                                 return repo.save(draft);
                             });
                 })

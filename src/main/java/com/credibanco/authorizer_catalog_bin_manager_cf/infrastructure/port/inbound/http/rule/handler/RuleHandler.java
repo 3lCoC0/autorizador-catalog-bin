@@ -1,4 +1,3 @@
-// infrastructure/port/inbound/http/rule/handler/RuleHandler.java
 package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.rule.handler;
 
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.rule.port.inbound.*;
@@ -20,6 +19,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.List;
 import static com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.config.http.ApiResponses.*;
+import com.credibanco.authorizer_catalog_bin_manager_cf.shared.validation.TextNormalizer;
 
 @Slf4j
 @Component
@@ -42,18 +42,25 @@ public class RuleHandler {
         return req.bodyToMono(ValidationCreateRequest.class)
                 .doOnSubscribe(s -> log.info("RULES:validation:create:recv"))
                 .flatMap(r -> validation.validate(r, AppError.RULES_VALIDATION_INVALID_DATA))
-                .flatMap(r -> resolveUser(req, r.createdBy(), "rules.validation.create")
-                        .defaultIfEmpty("")
-                        .flatMap(user -> {
-                            log.info("rules.validation.create - actor used={}", printableActor(user));
-                            ValidationDataType type;
-                            try {
-                                type = ValidationDataType.fromJson(r.dataType());
-                            } catch (IllegalArgumentException e) {
-                                return Mono.error(new AppException(AppError.RULES_VALIDATION_INVALID_DATA, e.getMessage()));
-                            }
-                            return createV.execute(r.code(), r.description(), type, toNullable(user));
-                        }))
+                .flatMap(valid -> {
+                    String code = normalize(valid.code());
+                    String description = normalize(valid.description());
+                    String dataTypeRaw = normalize(valid.dataType());
+
+                    ValidationDataType type;
+                    try {
+                        type = ValidationDataType.fromJson(dataTypeRaw);
+                    } catch (IllegalArgumentException e) {
+                        return Mono.error(new AppException(AppError.RULES_VALIDATION_INVALID_DATA, e.getMessage()));
+                    }
+
+                    return resolveUser(req, valid.createdBy(), "rules.validation.create")
+                            .defaultIfEmpty("")
+                            .flatMap(user -> {
+                                log.info("rules.validation.create - actor used={}", printableActor(user));
+                                return createV.execute(code, description, type, toNullable(user));
+                            });
+                })
                 .map(this::toResp)
                 .doOnSuccess(v -> log.info("RULES:validation:create:done code={} elapsedMs={}", v.code(), ms(t0)))
                 .flatMap(resp -> ServerResponse.created(req.uriBuilder().path("/{code}").build(resp.code()))
@@ -64,16 +71,19 @@ public class RuleHandler {
 
     public Mono<ServerResponse> updateValidation(ServerRequest req) {
         long t0 = System.nanoTime();
-        var code = req.pathVariable("code");
+        var code = normalize(req.pathVariable("code"));
         return req.bodyToMono(ValidationUpdateRequest.class)
                 .doOnSubscribe(s -> log.info("RULES:validation:update:recv code={}", code))
                 .flatMap(r -> validation.validate(r, AppError.RULES_VALIDATION_INVALID_DATA))
-                .flatMap(r -> resolveUser(req, r.updatedBy(), "rules.validation.update")
-                        .defaultIfEmpty("")
-                        .flatMap(user -> {
-                            log.info("rules.validation.update - actor used={}", printableActor(user));
-                            return updateV.execute(code, r.description(), toNullable(user));
-                        }))
+                .flatMap(valid -> {
+                    String description = normalize(valid.description());
+                    return resolveUser(req, valid.updatedBy(), "rules.validation.update")
+                            .defaultIfEmpty("")
+                            .flatMap(user -> {
+                                log.info("rules.validation.update - actor used={}", printableActor(user));
+                                return updateV.execute(code, description, toNullable(user));
+                            });
+                })
                 .map(this::toResp)
                 .doOnSuccess(v -> log.info("RULES:validation:update:done code={} elapsedMs={}", v.code(), ms(t0)))
                 .flatMap(resp -> ServerResponse.ok()
@@ -84,7 +94,7 @@ public class RuleHandler {
 
     public Mono<ServerResponse> changeValidationStatus(ServerRequest req) {
         long t0 = System.nanoTime();
-        var code = req.pathVariable("code");
+        var code = normalize(req.pathVariable("code"));
         return req.bodyToMono(ValidationStatusRequest.class)
                 .doOnSubscribe(s -> log.info("RULES:validation:status:recv code={}", code))
                 .flatMap(r -> validation.validate(r, AppError.RULES_VALIDATION_INVALID_DATA))
@@ -131,12 +141,18 @@ public class RuleHandler {
         return req.bodyToMono(MapRuleRequest.class)
                 .doOnSubscribe(s -> log.info("RULES:map:attach:recv"))
                 .flatMap(r -> validation.validate(r, AppError.RULES_MAP_INVALID_DATA))
-                .flatMap(r -> resolveUser(req, r.updatedBy(), "rules.map.attach")
-                        .defaultIfEmpty("")
-                        .flatMap(user -> {
-                            log.info("rules.map.attach - actor used={}", printableActor(user));
-                            return mapRuleUC.attach(r.subtypeCode(), r.bin(), r.code(), r.value(), toNullable(user));
-                        }))
+                .flatMap(valid -> {
+                    String subtypeCode = normalize(valid.subtypeCode());
+                    String bin = normalize(valid.bin());
+                    String code = normalize(valid.code());
+
+                    return resolveUser(req, valid.updatedBy(), "rules.map.attach")
+                            .defaultIfEmpty("")
+                            .flatMap(user -> {
+                                log.info("rules.map.attach - actor used={}", printableActor(user));
+                                return mapRuleUC.attach(subtypeCode, bin, code, valid.value(), toNullable(user));
+                            });
+                })
                 .map(this::toMapResp)
                 .doOnSuccess(m -> log.info("RULES:map:attach:done st={} bin={} valId={} elapsedMs={}",
                         m.subtypeCode(), m.bin(), m.validationId(), ms(t0)))
@@ -257,6 +273,10 @@ public class RuleHandler {
 
     private String printableActor(String user) {
         return (user == null || user.isBlank()) ? "<none>" : user;
+    }
+
+    private String normalize(String value) {
+        return TextNormalizer.uppercaseAndRemoveAccents(value);
     }
 
     private String toNullable(String value) {
