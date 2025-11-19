@@ -2,7 +2,6 @@ package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inb
 
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.bin.port.inbound.*;
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.bin.Bin;
-import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.config.http.ApiError;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.config.security.ActorProvider;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppException;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.bin.dto.BinCreateRequest;
@@ -12,9 +11,10 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbo
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.validation.ValidationUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.web.reactive.function.server.RouterFunction;
+import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -44,7 +44,14 @@ class BinHandlerTest {
 
         BinHandler handler = new BinHandler(createUC, listUC, validation, updateUC, getUC, changeStatusUC, actorProvider);
         BinRouter router = new BinRouter(handler);
-        client = WebTestClient.bindToRouterFunction(router.routes()).configureClient().baseUrl("/").build();
+        try {
+            var method = BinRouter.class.getDeclaredMethod("routes");
+            method.setAccessible(true);
+            client = WebTestClient.bindToRouterFunction((RouterFunction<ServerResponse>) method.invoke(router))
+                    .configureClient().baseUrl("/").build();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
 
         when(validation.validate(any(), any())).thenAnswer(inv -> Mono.just(inv.getArgument(0)));
         when(actorProvider.currentUserId()).thenReturn(Mono.just("secUser"));
@@ -56,7 +63,7 @@ class BinHandlerTest {
         when(createUC.execute(any(), any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(Mono.just(created));
 
-        BinCreateRequest request = new BinCreateRequest("123456", "NAME", "DEBITO", "12", "CC", "DESC", "N", null, "creator");
+        BinCreateRequest request = new BinCreateRequest("123456", "NAME", "DEBITO", "12", "CC", "DESC", "N", "creator", null);
 
         client.post().uri("/bins/create")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -94,7 +101,7 @@ class BinHandlerTest {
         when(updateUC.execute(any(), any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(Mono.just(updated));
 
-        BinUpdateRequest request = new BinUpdateRequest("123456", "NAME", "DEBITO", "12", "CC", "DESC", "N", null, "actor");
+        BinUpdateRequest request = new BinUpdateRequest("123456", "NAME", "DEBITO", "12", "CC", "DESC", "N", "actor", null);
 
         client.put().uri("/bins/update")
                 .contentType(MediaType.APPLICATION_JSON)

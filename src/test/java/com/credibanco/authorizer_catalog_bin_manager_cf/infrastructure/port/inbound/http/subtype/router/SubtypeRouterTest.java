@@ -1,33 +1,33 @@
-package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.bin.router;
+package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.subtype.router;
 
-import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.bin.handler.BinHandler;
+import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.subtype.handler.SubtypeHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
+import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
-import org.springframework.test.web.reactive.server.WebTestClient;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class BinRouterTest {
+class SubtypeRouterTest {
 
     @Mock
-    private BinHandler handler;
+    private SubtypeHandler handler;
 
     private WebTestClient webTestClient;
 
     @BeforeEach
     void setUp() {
-        BinRouter router = new BinRouter(handler);
-        RouterFunction<ServerResponse> routes = router.routes();
+        SubtypeRouter router = new SubtypeRouter(handler);
+        RouterFunction<ServerResponse> routes = router.subtypeRoutes();
         webTestClient = WebTestClient.bindToRouterFunction(routes).build();
     }
 
@@ -37,7 +37,7 @@ class BinRouterTest {
                 .thenReturn(ServerResponse.ok().build());
 
         webTestClient.post()
-                .uri("/bins/create")
+                .uri("/subtypes/create")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("{}")
                 .exchange()
@@ -48,25 +48,25 @@ class BinRouterTest {
 
     @Test
     void getListRoutesToHandler() {
-        when(handler.list(any(ServerRequest.class)))
+        when(handler.listByBin(any(ServerRequest.class)))
                 .thenReturn(ServerResponse.ok().build());
 
         webTestClient.get()
-                .uri("/bins/list")
+                .uri("/subtypes/list/bin/123456")
                 .accept(MediaType.APPLICATION_JSON)
                 .exchange()
                 .expectStatus().isOk();
 
-        verify(handler).list(any(ServerRequest.class));
+        verify(handler).listByBin(any(ServerRequest.class));
     }
 
     @Test
-    void getByBinRoutesToHandler() {
+    void getByPkRoutesToHandler() {
         when(handler.get(any(ServerRequest.class)))
                 .thenReturn(ServerResponse.ok().build());
 
         webTestClient.get()
-                .uri("/bins/get/123456")
+                .uri("/subtypes/get/123456/ABC")
                 .accept(MediaType.APPLICATION_JSON)
                 .exchange()
                 .expectStatus().isOk();
@@ -80,7 +80,7 @@ class BinRouterTest {
                 .thenReturn(ServerResponse.ok().build());
 
         webTestClient.put()
-                .uri("/bins/update")
+                .uri("/subtypes/update/123456/ABC")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("{}")
                 .exchange()
@@ -95,7 +95,7 @@ class BinRouterTest {
                 .thenReturn(ServerResponse.ok().build());
 
         webTestClient.put()
-                .uri("/bins/update/status/123456")
+                .uri("/subtypes/update/status/123456/ABC")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("{}")
                 .exchange()

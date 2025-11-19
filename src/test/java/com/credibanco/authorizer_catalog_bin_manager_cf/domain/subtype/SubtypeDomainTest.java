@@ -70,6 +70,14 @@ class SubtypeDomainTest {
     }
 
     @Test
+    void updateBasicsRequiresNonBlankName() {
+        Subtype subtype = Subtype.createNew("ABC", "123456", "Nombre", "Desc", "CC", "123", null, null);
+
+        assertThrows(IllegalArgumentException.class, () ->
+                subtype.updateBasics("  ", "Desc", "CC", "123", null, "modifier"));
+    }
+
+    @Test
     void rehydrateCreatesValidInstance() {
         OffsetDateTime now = OffsetDateTime.now();
         Subtype subtype = Subtype.rehydrate(
@@ -106,6 +114,25 @@ class SubtypeDomainTest {
                 new Subtype("ABC", "123456", "Nombre", "Desc", "A",
                         null, null, "1", "123456", 1L,
                         OffsetDateTime.now(), OffsetDateTime.now(), null));
+    }
+
+    @Test
+    void changeStatusKeepsIdentityAndExtValues() {
+        OffsetDateTime created = OffsetDateTime.now().minusDays(1);
+        Subtype subtype = Subtype.rehydrate("ABC", "123456", "Nombre", "Desc", "I",
+                "CC", "123", "07", "12345607", 99L, created, created, "creator");
+
+        Subtype updated = subtype.changeStatus("A", "approver");
+
+        assertEquals(subtype.subtypeCode(), updated.subtypeCode());
+        assertEquals(subtype.bin(), updated.bin());
+        assertEquals("07", updated.binExt());
+        assertEquals("12345607", updated.binEfectivo());
+        assertEquals(subtype.subtypeId(), updated.subtypeId());
+        assertEquals(created, updated.createdAt());
+        assertEquals("A", updated.status());
+        assertEquals("approver", updated.updatedBy());
+        assertNotNull(updated.updatedAt());
     }
 
     @ParameterizedTest
