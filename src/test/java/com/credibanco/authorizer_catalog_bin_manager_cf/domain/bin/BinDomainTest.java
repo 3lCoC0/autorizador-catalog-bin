@@ -26,7 +26,8 @@ class BinDomainTest {
             "1234567,NAME,PREPAGO,12,CC,DESC,N,''"
     })
     void changeStatusValidatesNewStatus(String binValue, String name, String typeBin, String typeAcc,
-                                         String comp, String desc, String usesExt, Integer digits) {
+                                         String comp, String desc, String usesExt, String digitsStr) {
+        Integer digits = (digitsStr == null || digitsStr.isBlank()) ? null : Integer.valueOf(digitsStr);
         Bin bin = Bin.rehydrate(binValue, name, typeBin, typeAcc, comp, desc, "A", OffsetDateTime.now(), OffsetDateTime.now(), null, usesExt, digits);
         Bin updated = bin.changeStatus("I", "user");
         assertEquals("I", updated.status());
@@ -63,7 +64,8 @@ class BinDomainTest {
             "123456,NAME,DEBITO,12,CC,DESC,N,1"
     })
     void constructorGuardsAgainstInvalidData(String binVal, String name, String typeBin, String typeAcc,
-                                             String comp, String desc, String usesExt, Integer digits) {
+                                             String comp, String desc, String usesExt, String digitsStr) {
+        Integer digits = (digitsStr == null || digitsStr.isBlank()) ? null : Integer.valueOf(digitsStr);
         assertThrows(IllegalArgumentException.class, () ->
                 Bin.createNew(binVal, name, typeBin, typeAcc, comp, desc, usesExt, digits, null));
     }

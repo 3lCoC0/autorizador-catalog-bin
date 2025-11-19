@@ -58,7 +58,7 @@ class BinUseCasesTest {
         StepVerifier.create(service.execute("123456", "NAME", "DEBITO", "12", "CC", "DESC", "N", null, null))
                 .expectErrorSatisfies(err -> {
                     assertEquals(AppException.class, err.getClass());
-                    assertEquals(AppError.BIN_ALREADY_EXISTS, ((AppException) err).getCode());
+                    assertEquals(AppError.BIN_ALREADY_EXISTS, ((AppException) err).getError());
                 })
                 .verify();
     }
@@ -75,7 +75,7 @@ class BinUseCasesTest {
 
         when(repo.findById("999999")).thenReturn(Mono.empty());
         StepVerifier.create(service.execute("999999"))
-                .expectErrorSatisfies(err -> assertEquals(AppError.BIN_NOT_FOUND, ((AppException) err).getCode()))
+                .expectErrorSatisfies(err -> assertEquals(AppError.BIN_NOT_FOUND, ((AppException) err).getError()))
                 .verify();
     }
 
@@ -89,7 +89,7 @@ class BinUseCasesTest {
                 .verifyComplete();
 
         StepVerifier.create(service.execute(-1, 0))
-                .expectErrorSatisfies(err -> assertEquals(AppError.BIN_INVALID_DATA, ((AppException) err).getCode()))
+                .expectErrorSatisfies(err -> assertEquals(AppError.BIN_INVALID_DATA, ((AppException) err).getError()))
                 .verify();
     }
 
@@ -119,7 +119,7 @@ class BinUseCasesTest {
         when(subtypeRepo.existsAnyByBin("123456")).thenReturn(Mono.just(true));
 
         StepVerifier.create(service.execute("123456", "NAME", "DEBITO", "12", "CC", "DESC", "Y", 1, null))
-                .expectErrorSatisfies(err -> assertEquals(AppError.BIN_INVALID_DATA, ((AppException) err).getCode()))
+                .expectErrorSatisfies(err -> assertEquals(AppError.BIN_INVALID_DATA, ((AppException) err).getError()))
                 .verify();
     }
 
@@ -136,7 +136,7 @@ class BinUseCasesTest {
                 .verifyComplete();
 
         StepVerifier.create(service.execute("123456", "X", "user"))
-                .expectErrorSatisfies(err -> assertEquals(AppError.BIN_INVALID_DATA, ((AppException) err).getCode()))
+                .expectErrorSatisfies(err -> assertEquals(AppError.BIN_INVALID_DATA, ((AppException) err).getError()))
                 .verify();
     }
 }
