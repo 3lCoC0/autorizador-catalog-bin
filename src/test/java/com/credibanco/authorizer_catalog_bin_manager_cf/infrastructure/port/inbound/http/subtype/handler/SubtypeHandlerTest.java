@@ -10,12 +10,15 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbo
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.validation.ValidationUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.ServerResponse;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -81,6 +84,25 @@ class SubtypeHandlerTest {
     }
 
     @Test
+    void listEndpointReturnsSubtypeListAndPassesParameters() {
+        Subtype first = Subtype.createNew("AAA", "654321", "FIRST", "DESC", "CC", "1", "9", "creator");
+        Subtype second = Subtype.createNew("BBB", "654321", "SECOND", "DESC", "CC", "2", null, "creator");
+
+        when(listUC.execute("654321", null, "A", 1, 5))
+                .thenReturn(Flux.just(first, second));
+
+        client.get().uri("/subtypes/list/bin/654321?status=A&page=1&size=5")
+                .accept(MediaType.APPLICATION_JSON)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.data[0].subtypeCode").isEqualTo("AAA")
+                .jsonPath("$.data[1].subtypeCode").isEqualTo("BBB");
+
+        verify(listUC).execute("654321", null, "A", 1, 5);
+    }
+
+    @Test
     void updateEndpointPassesPayload() {
         Subtype updated = Subtype.createNew("ABC", "123456", "NAME", "DESC", "CC", "123", null, null);
         when(updateUC.execute(any(), any(), any(), any(), any(), any(), any(), any()))
@@ -125,5 +147,65 @@ class SubtypeHandlerTest {
                 .expectStatus().isOk()
                 .expectBody()
                 .jsonPath("$.data.status").isEqualTo("I");
+    }
+
+    @Test
+    void createEndpointPrefersActorFromBody() {
+        Subtype created = Subtype.createNew("ABC", "123456", "NAME", "DESC", "CC", "123", "7", "creator");
+        when(createUC.execute(any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(Mono.just(created));
+
+        SubtypeCreateRequest request = new SubtypeCreateRequest("ABC", "123456", "NAME", "DESC", "CC", "123", "7", "bodyUser");
+
+        client.post().uri("/subtypes/create")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isCreated();
+
+        ArgumentCaptor<String> actorCaptor = ArgumentCaptor.forClass(String.class);
+        verify(createUC).execute(any(), any(), any(), any(), any(), any(), any(), actorCaptor.capture());
+        assertEquals("bodyUser", actorCaptor.getValue());
+    }
+
+    @Test
+    void createEndpointUsesHeaderWhenBodyMissing() {
+        Subtype created = Subtype.createNew("ABC", "123456", "NAME", "DESC", "CC", "123", "7", "creator");
+        when(createUC.execute(any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(Mono.just(created));
+
+        SubtypeCreateRequest request = new SubtypeCreateRequest("ABC", "123456", "NAME", "DESC", "CC", "123", "7", null);
+
+        client.post().uri("/subtypes/create")
+                .header("X-User", "headerUser")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isCreated();
+
+        ArgumentCaptor<String> actorCaptor = ArgumentCaptor.forClass(String.class);
+        verify(createUC).execute(any(), any(), any(), any(), any(), any(), any(), actorCaptor.capture());
+        assertEquals("headerUser", actorCaptor.getValue());
+    }
+
+    @Test
+    void createEndpointFallsBackToSecurityContext() {
+        when(actorProvider.currentUserId()).thenReturn(Mono.just("   secUser   "));
+
+        Subtype created = Subtype.createNew("ABC", "123456", "NAME", "DESC", "CC", "123", "7", "creator");
+        when(createUC.execute(any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(Mono.just(created));
+
+        SubtypeCreateRequest request = new SubtypeCreateRequest("ABC", "123456", "NAME", "DESC", "CC", "123", "7", null);
+
+        client.post().uri("/subtypes/create")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isCreated();
+
+        ArgumentCaptor<String> actorCaptor = ArgumentCaptor.forClass(String.class);
+        verify(createUC).execute(any(), any(), any(), any(), any(), any(), any(), actorCaptor.capture());
+        assertEquals("secUser", actorCaptor.getValue());
     }
 }
