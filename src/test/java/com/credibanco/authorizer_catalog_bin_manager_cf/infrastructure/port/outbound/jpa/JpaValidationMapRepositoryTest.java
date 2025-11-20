@@ -25,7 +25,6 @@ import java.util.Optional;
 
 import reactor.test.StepVerifier;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -95,6 +94,44 @@ class JpaValidationMapRepositoryTest {
     }
 
     @Test
+    void saveFailsWhenValidationIsNotActive() {
+        ValidationMap map = ValidationMap.createNew("ST", "123456", 1L, null, null, null, "actor");
+        when(subtypeRepository.existsById(new SubtypeEntityId("ST", "123456"))).thenReturn(true);
+        when(validationRepository.findActiveById(eq(1L), any(OffsetDateTime.class)))
+                .thenReturn(Optional.empty());
+
+        StepVerifier.create(repo.save(map))
+                .expectError(NoSuchElementException.class)
+                .verify();
+    }
+
+    @Test
+    void saveUpdatesExistingEntityWithoutOverwritingCreatedAt() {
+        ValidationMap map = ValidationMap.createNew("ST", "123456", 1L, "SI", 5.0, "text", "actor");
+        OffsetDateTime past = OffsetDateTime.now().minusDays(2);
+        ValidationMapEntity existing = new ValidationMapEntity();
+        existing.setMapId(10L);
+        existing.setSubtypeCode("ST");
+        existing.setBin("123456");
+        existing.setValidationId(1L);
+        existing.setStatus("I");
+        existing.setCreatedAt(past);
+        existing.setUpdatedAt(past);
+
+        when(subtypeRepository.existsById(new SubtypeEntityId("ST", "123456"))).thenReturn(true);
+        when(validationRepository.findActiveById(eq(1L), any(OffsetDateTime.class)))
+                .thenReturn(Optional.of(new ValidationEntity()));
+        when(springRepository.findBySubtypeCodeAndBinAndValidationId("ST", "123456", 1L))
+                .thenReturn(Optional.of(existing));
+        when(springRepository.save(any(ValidationMapEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        StepVerifier.create(repo.save(map))
+                .expectNextMatches(saved -> saved.createdAt().equals(past) && "SI".equals(saved.valueFlag()))
+                .verifyComplete();
+    }
+
+    @Test
     void findByNaturalKeyReturnsMono() {
         ValidationMap map = ValidationMap.createNew("ST", "123456", 1L, null, null, null, "actor");
         when(springRepository.findBySubtypeCodeAndBinAndValidationId("ST", "123456", 1L))
@@ -102,6 +139,15 @@ class JpaValidationMapRepositoryTest {
 
         StepVerifier.create(repo.findByNaturalKey("ST", "123456", 1L))
                 .expectNextMatches(found -> found.validationId().equals(1L))
+                .verifyComplete();
+    }
+
+    @Test
+    void findByNaturalKeyReturnsEmptyWhenNotFound() {
+        when(springRepository.findBySubtypeCodeAndBinAndValidationId("ST", "123456", 1L))
+                .thenReturn(Optional.empty());
+
+        StepVerifier.create(repo.findByNaturalKey("ST", "123456", 1L))
                 .verifyComplete();
     }
 
