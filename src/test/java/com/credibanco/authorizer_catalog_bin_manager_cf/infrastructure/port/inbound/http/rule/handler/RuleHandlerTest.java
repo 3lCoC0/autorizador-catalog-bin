@@ -24,6 +24,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -216,6 +217,19 @@ class RuleHandlerTest {
     }
 
     @Test
+    void listRulesForSubtypeBySubtypeReportsFilteredEmptyMessage() {
+        when(listRulesUC.execute(eq("ST"), eq("I"), anyInt(), anyInt()))
+                .thenReturn(Flux.empty());
+
+        client.get().uri("/v1/subtypes/ST/rules?status=I&page=0&size=5")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.detail").value(detail -> assertThat(detail.toString())
+                        .contains("no tiene reglas con el filtro aplicado"));
+    }
+
+    @Test
     void createValidationHandlesInvalidDataType() {
         ValidationCreateRequest request = new ValidationCreateRequest("CODE", "DESC", "UNKNOWN", null, null, null, "creator");
 
@@ -224,5 +238,87 @@ class RuleHandlerTest {
                 .bodyValue(request)
                 .exchange()
                 .expectStatus().is5xxServerError();
+    }
+
+    @Test
+    void getValidationReturnsAggregate() {
+        Validation aggregate = Validation.createNew("CODE", "DESC", ValidationDataType.TEXT, "creator");
+        when(getUC.execute("CODE")).thenReturn(Mono.just(aggregate));
+
+        client.get().uri("/validations/get/CODE")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.data.code").isEqualTo("CODE")
+                .jsonPath("$.data.description").isEqualTo("DESC");
+    }
+
+    @Test
+    void listValidationsUsesQueryParameters() {
+        Validation aggregate = Validation.createNew("CODE", "DESC", ValidationDataType.TEXT, "creator");
+        when(listUC.execute("A", "search", 1, 10)).thenReturn(Flux.just(aggregate));
+
+        client.get().uri("/validations/list?status=A&q=search&page=1&size=10")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$[0].code").isEqualTo("CODE");
+    }
+
+    @Test
+    void resolveUserPrefersBodyOverHeader() {
+        Validation aggregate = Validation.createNew("CODE", "DESC", ValidationDataType.TEXT, "creator");
+        when(createUC.execute(anyString(), anyString(), any(), any())).thenReturn(Mono.just(aggregate));
+
+        ValidationCreateRequest request = new ValidationCreateRequest("CODE", "DESC", "TEXT", null, null, null, "bodyUser");
+
+        client.post().uri("/validations/create")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("X-User", "headerUser")
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isCreated();
+
+        var captor = forClass(String.class);
+        verify(createUC).execute(anyString(), anyString(), any(), captor.capture());
+        assertThat(captor.getValue()).isEqualTo("bodyUser");
+    }
+
+    @Test
+    void resolveUserFallsBackToHeader() {
+        Validation updated = Validation.createNew("CODE", "DESC", ValidationDataType.TEXT, "creator");
+        when(updateUC.execute(anyString(), anyString(), any())).thenReturn(Mono.just(updated));
+
+        ValidationUpdateRequest request = new ValidationUpdateRequest("CODE", "DESC", "TEXT", null, null, null, "   ");
+
+        client.put().uri("/validations/update/CODE")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("X-User", "headerUser")
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isOk();
+
+        var captor = forClass(String.class);
+        verify(updateUC).execute(eq("CODE"), anyString(), captor.capture());
+        assertThat(captor.getValue()).isEqualTo("headerUser");
+    }
+
+    @Test
+    void resolveUserFallsBackToSecurityContext() {
+        Validation changed = Validation.createNew("CODE", "DESC", ValidationDataType.TEXT, "creator")
+                .changeStatus("I", "secUser");
+        when(changeStatusUC.execute(anyString(), anyString(), any())).thenReturn(Mono.just(changed));
+
+        ValidationStatusRequest request = new ValidationStatusRequest("I", "   ");
+
+        client.put().uri("/validations/update/status/CODE")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isOk();
+
+        var captor = forClass(String.class);
+        verify(changeStatusUC).execute(eq("CODE"), eq("I"), captor.capture());
+        assertThat(captor.getValue()).isEqualTo("secUser");
     }
 }
