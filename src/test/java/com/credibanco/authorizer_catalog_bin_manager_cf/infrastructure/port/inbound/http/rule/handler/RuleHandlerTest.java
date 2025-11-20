@@ -254,6 +254,38 @@ class RuleHandlerTest {
     }
 
     @Test
+    void getValidationBuildsEnvelopeResponse() {
+        Validation aggregate = Validation.createNew("CODE", "DESC", ValidationDataType.TEXT, "creator");
+        when(getUC.execute("CODE")).thenReturn(Mono.just(aggregate));
+
+        MockServerWebExchange exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/validations/get/CODE").build());
+        exchange.getAttributes().put(RouterFunctions.URI_TEMPLATE_VARIABLES_ATTRIBUTE, java.util.Map.of("code", "CODE"));
+        ServerRequest request = ServerRequest.create(exchange, HandlerStrategies.withDefaults().messageReaders());
+
+        Context contextForGet = new Context() {
+            @Override
+            public java.util.List<org.springframework.http.codec.HttpMessageWriter<?>> messageWriters() {
+                return HandlerStrategies.withDefaults().messageWriters();
+            }
+
+            @Override
+            public java.util.List<org.springframework.web.reactive.result.view.ViewResolver> viewResolvers() {
+                return HandlerStrategies.withDefaults().viewResolvers();
+            }
+        };
+
+        handler.getValidation(request)
+                .flatMap(resp -> resp.writeTo(exchange, contextForGet))
+                .block();
+
+        String body = exchange.getResponse().getBodyAsString().block();
+        assertThat(body)
+                .contains("Operación exitosa")
+                .contains("\"code\":\"CODE\"")
+                .contains("\"description\":\"DESC\"");
+    }
+
+    @Test
     void listValidationsUsesQueryParameters() {
         Validation aggregate = Validation.createNew("CODE", "DESC", ValidationDataType.TEXT, "creator");
         when(listUC.execute("A", "search", 1, 10)).thenReturn(Flux.just(aggregate));
@@ -263,6 +295,34 @@ class RuleHandlerTest {
                 .expectStatus().isOk()
                 .expectBody()
                 .jsonPath("$[0].code").isEqualTo("CODE");
+    }
+
+    @Test
+    void listValidationsDefaultsAreAppliedWhenQueryParamsMissing() {
+        Validation aggregate = Validation.createNew("CODE", "DESC", ValidationDataType.TEXT, "creator");
+        when(listUC.execute(null, null, 0, 20)).thenReturn(Flux.just(aggregate));
+
+        MockServerWebExchange exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/validations/list").build());
+        ServerRequest request = ServerRequest.create(exchange, HandlerStrategies.withDefaults().messageReaders());
+
+        Context contextForList = new Context() {
+            @Override
+            public java.util.List<org.springframework.http.codec.HttpMessageWriter<?>> messageWriters() {
+                return HandlerStrategies.withDefaults().messageWriters();
+            }
+
+            @Override
+            public java.util.List<org.springframework.web.reactive.result.view.ViewResolver> viewResolvers() {
+                return HandlerStrategies.withDefaults().viewResolvers();
+            }
+        };
+
+        handler.listValidations(request)
+                .flatMap(resp -> resp.writeTo(exchange, contextForList))
+                .block();
+
+        String body = exchange.getResponse().getBodyAsString().block();
+        assertThat(body).contains("CODE");
     }
 
     @Test
@@ -320,5 +380,22 @@ class RuleHandlerTest {
         var captor = forClass(String.class);
         verify(changeStatusUC).execute(eq("CODE"), eq("I"), captor.capture());
         assertThat(captor.getValue()).isEqualTo("secUser");
+    }
+
+    @Test
+    void resolveUserReturnsEmptyWhenNoSourcesAvailable() {
+        when(actorProvider.currentUserId()).thenReturn(Mono.empty());
+        Validation aggregate = Validation.createNew("CODE", "DESC", ValidationDataType.TEXT, "creator");
+        when(createUC.execute(anyString(), anyString(), any(), isNull())).thenReturn(Mono.just(aggregate));
+
+        ValidationCreateRequest request = new ValidationCreateRequest("CODE", "DESC", "TEXT", null, null, null, "   ");
+
+        client.post().uri("/validations/create")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isCreated();
+
+        verify(createUC).execute(anyString(), anyString(), any(), isNull());
     }
 }
