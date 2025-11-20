@@ -5,6 +5,7 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.application.plan.model.P
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.plan.CommercePlan;
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.plan.CommerceValidationMode;
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.plan.SubtypePlanLink;
+import com.credibanco.authorizer_catalog_bin_manager_cf.domain.plan.PlanItem;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.config.security.ActorProvider;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.plan.dto.*;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.plan.router.PlanRouter;
@@ -87,6 +88,20 @@ class PlanHandlerTest {
     }
 
     @Test
+    void getEndpointReturnsEnvelope() {
+        CommercePlan created = CommercePlan.rehydrate(5L, "PLAN1", "Name", CommerceValidationMode.MERCHANT_ID,
+                "desc", "A", OffsetDateTime.now(), OffsetDateTime.now(), "creator");
+        when(getUC.execute("PLAN1")).thenReturn(Mono.just(created));
+
+        client.get().uri("/plans/get/PLAN1")
+                .accept(MediaType.APPLICATION_JSON)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.data.code").isEqualTo("PLAN1");
+    }
+
+    @Test
     void changeStatusEndpointUsesPathVariable() {
         CommercePlan plan = CommercePlan.rehydrate(10L, "PLAN1", "Name", CommerceValidationMode.MERCHANT_ID,
                 "desc", "I", OffsetDateTime.now(), OffsetDateTime.now(), "actor");
@@ -103,11 +118,53 @@ class PlanHandlerTest {
     }
 
     @Test
+    void changeStatusResolvesActorFromHeaderWhenBodyBlank() {
+        CommercePlan plan = CommercePlan.rehydrate(10L, "PLAN1", "Name", CommerceValidationMode.MERCHANT_ID,
+                "desc", "I", OffsetDateTime.now(), OffsetDateTime.now(), "header-actor");
+        when(changeStatusUC.execute(eq("PLAN1"), eq("I"), eq("header-actor"))).thenReturn(Mono.just(plan));
+
+        PlanStatusRequest body = new PlanStatusRequest("I", " ");
+        client.put().uri("/plans/update/status/PLAN1")
+                .header("X-User", "header-actor")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(body)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.data.updatedBy").isEqualTo("header-actor");
+    }
+
+    @Test
     void listItemsValidatesRequiredPlanCode() {
+        when(getUC.execute("%20")).thenReturn(Mono.error(new RuntimeException("invalid")));
         client.get().uri("/plans/items/get/%20")
                 .accept(MediaType.APPLICATION_JSON)
                 .exchange()
                 .expectStatus().is5xxServerError();
+    }
+
+    @Test
+    void listItemsRejectsNonNumericPaginationValues() {
+        client.get().uri("/plans/items/get/PLAN?page=abc")
+                .accept(MediaType.APPLICATION_JSON)
+                .exchange()
+                .expectStatus().is5xxServerError();
+    }
+
+    @Test
+    void listItemsReturnsDetailWhenEmptyUsingAllStatus() {
+        CommercePlan plan = CommercePlan.rehydrate(1L, "PLAN", "Name", CommerceValidationMode.MERCHANT_ID,
+                "desc", "A", OffsetDateTime.now(), OffsetDateTime.now(), "actor");
+        when(getUC.execute("PLAN")).thenReturn(Mono.just(plan));
+        when(listItemsUC.list("PLAN", 0, 100, null)).thenReturn(Flux.empty());
+
+        client.get().uri("/plans/items/get/PLAN?status=ALL")
+                .accept(MediaType.APPLICATION_JSON)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.data.detail").doesNotExist()
+                .jsonPath("$.detail").isEqualTo("El plan no tiene ítems");
     }
 
     @Test
@@ -127,6 +184,34 @@ class PlanHandlerTest {
     }
 
     @Test
+    void addItemSingleValueCreatesResource() {
+        PlanItem item = PlanItem.rehydrate(55L, 5L, "1000", OffsetDateTime.now(), OffsetDateTime.now(), "user", "A");
+        when(addItemUC.addValue("PLAN", "1000", "headerUser")).thenReturn(Mono.just(item));
+
+        PlanItemRequest request = new PlanItemRequest("PLAN", "1000", null, null);
+
+        client.post().uri("/plans/items/attach")
+                .header("X-User", "headerUser")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isCreated()
+                .expectBody()
+                .jsonPath("$.data.planItemId").isEqualTo(55);
+    }
+
+    @Test
+    void addItemRequiresValueOrValues() {
+        PlanItemRequest request = new PlanItemRequest("PLAN", " ", List.of(), null);
+
+        client.post().uri("/plans/items/attach")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().is5xxServerError();
+    }
+
+    @Test
     void assignToSubtypeReturnsLink() {
         SubtypePlanLink link = SubtypePlanLink.rehydrate("SUB", 99L, OffsetDateTime.now(), OffsetDateTime.now(), "actor");
         when(assignUC.assign(eq("SUB"), eq("PLAN"), any())).thenReturn(Mono.just(link));
@@ -143,6 +228,21 @@ class PlanHandlerTest {
     }
 
     @Test
+    void changeItemStatusReturnsEnvelope() {
+        PlanItem item = PlanItem.rehydrate(1L, 1L, "1000", OffsetDateTime.now(), OffsetDateTime.now(), "actor", "I");
+        when(changeItemStatusUC.execute("PLAN", "1000", "I", "secUser")).thenReturn(Mono.just(item));
+
+        PlanItemStatus request = new PlanItemStatus("PLAN", "1000", "I", null);
+        client.put().uri("/plans/items/update/status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.data.status").isEqualTo("I");
+    }
+
+    @Test
     void listPlansPassesThroughQueryParams() {
         CommercePlan plan = CommercePlan.rehydrate(1L, "PLAN", "Name", CommerceValidationMode.MERCHANT_ID,
                 "desc", "A", OffsetDateTime.now(), OffsetDateTime.now(), "actor");
@@ -154,5 +254,34 @@ class PlanHandlerTest {
                 .expectStatus().isOk()
                 .expectBody()
                 .jsonPath("$.data[0].code").isEqualTo("PLAN");
+    }
+
+    @Test
+    void listPlansReturnsEmptyDetailWhenNoResults() {
+        when(listUC.execute(null, null, 0, 20)).thenReturn(Flux.empty());
+
+        client.get().uri("/plans/list")
+                .accept(MediaType.APPLICATION_JSON)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.detail").isEqualTo("Sin planes para el filtro");
+    }
+
+    @Test
+    void updatePlanUsesNormalizedValuesAndSecurityActorFallback() {
+        CommercePlan plan = CommercePlan.rehydrate(1L, "PLAN1", "NOMBRE", CommerceValidationMode.MERCHANT_ID,
+                "DESC", "A", OffsetDateTime.now(), OffsetDateTime.now(), "secUser");
+        when(updateUC.execute("PLAN1", "NOMBRE", "DESC", "MERCHANT_ID", "secUser")).thenReturn(Mono.just(plan));
+
+        PlanUpdateRequest request = new PlanUpdateRequest("nombre", "desc", CommerceValidationMode.MERCHANT_ID, null);
+
+        client.put().uri("/plans/update/plan1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.data.code").isEqualTo("PLAN1");
     }
 }
