@@ -18,6 +18,7 @@ import reactor.test.StepVerifier;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -57,6 +58,26 @@ class JpaSubtypeRepositoryTest {
     }
 
     @Test
+    void existsByBinAndExtReturnsFalseWhenExtIsNull() {
+        StepVerifier.create(repo.existsByBinAndExt("123456", null))
+                .expectNext(false)
+                .verifyComplete();
+
+        verifyNoInteractions(springRepo);
+    }
+
+    @Test
+    void existsAnyByBinDelegatesToRepository() {
+        when(springRepo.existsByIdBin("123456")).thenReturn(true);
+
+        StepVerifier.create(repo.existsAnyByBin("123456"))
+                .expectNext(true)
+                .verifyComplete();
+
+        verify(springRepo).existsByIdBin("123456");
+    }
+
+    @Test
     void savePersistsAggregateAndMapsBack() {
         Subtype aggregate = Subtype.createNew("ABC", "123456", "NAME", "DESC", "CC", "123", "7", "creator");
         SubtypeEntity entity = SubtypeJpaMapper.toEntity(aggregate);
@@ -77,6 +98,16 @@ class JpaSubtypeRepositoryTest {
         StepVerifier.create(repo.findByPk("123456", "ABC"))
                 .expectNextMatches(found -> found.subtypeId().equals(10L) && found.binExt().equals("07"))
                 .verifyComplete();
+    }
+
+    @Test
+    void findByPkThrowsWhenMissing() {
+        when(springRepo.findById(new SubtypeEntityId("ABC", "123456")))
+                .thenReturn(Optional.empty());
+
+        StepVerifier.create(repo.findByPk("123456", "ABC"))
+                .expectError(NoSuchElementException.class)
+                .verify();
     }
 
     @Test
