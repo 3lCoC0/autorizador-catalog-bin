@@ -7,6 +7,7 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.outb
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.outbound.jpa.repository.CommercePlanJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -16,6 +17,7 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.DefaultTransactionStatus;
 import reactor.test.StepVerifier;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -61,6 +63,36 @@ class JpaCommercePlanRepositoryTest {
     }
 
     @Test
+    void existsAndFindHandleLengthError() {
+        DataAccessException lengthError = new org.springframework.dao.DataIntegrityViolationException(
+                "ORA-00910: invalid length", new RuntimeException("ORA-00910"));
+        when(springRepo.existsByPlanCode("TOO_LONG")).thenThrow(lengthError);
+        when(springRepo.findByPlanCode("TOO_LONG")).thenThrow(lengthError);
+
+        StepVerifier.create(repo.existsByCode("TOO_LONG"))
+                .expectNext(false)
+                .verifyComplete();
+
+        StepVerifier.create(repo.findByCode("TOO_LONG"))
+                .verifyComplete();
+    }
+
+    @Test
+    void existsAndFindPropagateUnexpectedErrors() {
+        RuntimeException failure = new RuntimeException("boom");
+        when(springRepo.existsByPlanCode("BAD")).thenThrow(failure);
+        when(springRepo.findByPlanCode("BAD")).thenThrow(failure);
+
+        StepVerifier.create(repo.existsByCode("BAD"))
+                .expectErrorMatches(failure::equals)
+                .verify();
+
+        StepVerifier.create(repo.findByCode("BAD"))
+                .expectErrorMatches(failure::equals)
+                .verify();
+    }
+
+    @Test
     void saveMapsDomainToEntityAndBack() {
         CommercePlan aggregate = CommercePlan.createNew("CODE", "NAME", CommerceValidationMode.MERCHANT_ID, "desc", "creator");
         when(springRepo.findByPlanCode("CODE")).thenReturn(Optional.empty());
@@ -75,6 +107,23 @@ class JpaCommercePlanRepositoryTest {
                     assertEquals(99L, saved.planId());
                     assertThat(saved.createdAt()).isNotNull();
                 })
+                .verifyComplete();
+    }
+
+    @Test
+    void saveUpdatesExistingMetadata() {
+        CommercePlan aggregate = CommercePlan.rehydrate(null, "CODE", "NAME", CommerceValidationMode.MERCHANT_ID,
+                "desc", "A", null, null, "creator");
+        CommercePlanEntity existing = CommercePlanJpaMapper.toEntity(aggregate);
+        existing.setPlanId(77L);
+        OffsetDateTime created = OffsetDateTime.now().minusDays(2);
+        existing.setCreatedAt(created);
+        existing.setUpdatedAt(created);
+        when(springRepo.findByPlanCode("CODE")).thenReturn(Optional.of(existing));
+        when(springRepo.save(any(CommercePlanEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        StepVerifier.create(repo.save(aggregate))
+                .assertNext(saved -> assertEquals(created, saved.createdAt()))
                 .verifyComplete();
     }
 
