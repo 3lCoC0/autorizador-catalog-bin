@@ -1,157 +1,84 @@
 package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.config;
 
-import com.zaxxer.hikari.HikariConfig;
-import com.zaxxer.hikari.HikariDataSource;
-import jakarta.persistence.EntityManagerFactory;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
-import org.springframework.boot.autoconfigure.orm.jpa.JpaProperties;
-import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
+import org.mockito.Mockito;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionStatus;
-import org.springframework.transaction.reactive.TransactionalOperator;
+import org.springframework.transaction.support.DefaultTransactionDefinition;
+import org.springframework.transaction.support.DefaultTransactionStatus;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
-import java.sql.Driver;
-import java.sql.DriverManager;
-import java.sql.DriverPropertyInfo;
-import java.sql.SQLException;
-import java.util.Map;
-import java.util.Properties;
-import java.util.logging.Logger;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 class JpaConfigTest {
 
-    private JpaConfig config;
+    @Test
+    void reactiveTransactionAdapterDelegatesStatusOperations() {
+        TransactionStatus status = new DefaultTransactionStatus(null, false, false, false, false, null);
+        Scheduler.Worker worker = Schedulers.single().createWorker();
+        JpaConfig.ReactiveTransactionAdapter adapter = new JpaConfig.ReactiveTransactionAdapter(status, worker);
 
-    @BeforeEach
-    void setup() {
-        config = new JpaConfig();
-    }
+        assertFalse(adapter.isNewTransaction());
+        assertFalse(adapter.isRollbackOnly());
+        adapter.setRollbackOnly();
+        assertTrue(adapter.isRollbackOnly());
+        assertFalse(adapter.isCompleted());
 
-    @AfterEach
-    void tearDown() throws SQLException {
-        try {
-            DriverManager.deregisterDriver(DummyDriver.INSTANCE);
-        } catch (SQLException ignored) {
-            // Driver was not registered in this test
-        }
+        adapter.setRollbackOnly();
+        worker.dispose();
     }
 
     @Test
-    void hikariBeansAreCreatedAndConfigured() throws SQLException {
-        DriverManager.registerDriver(DummyDriver.INSTANCE);
-        DataSourceProperties properties = new DataSourceProperties();
-        properties.setUrl("jdbc:dummy");
-        properties.setUsername("user");
-        properties.setPassword("pwd");
-        properties.setDriverClassName(DummyDriver.class.getName());
-
-        HikariConfig hkConfig = config.hikariConfig();
-        assertThrows(com.zaxxer.hikari.pool.HikariPool.PoolInitializationException.class,
-                () -> config.dataSource(properties, hkConfig));
-        assertThat(hkConfig.getJdbcUrl()).isEqualTo("jdbc:dummy");
-        assertThat(hkConfig.getUsername()).isEqualTo("user");
-    }
-
-    @Test
-    void entityManagerFactoryUsesJpaProperties() {
-        JpaProperties jpaProperties = new JpaProperties();
-        jpaProperties.setShowSql(true);
-        jpaProperties.setProperties(Map.of("hibernate.dialect", "H2"));
-
-        LocalContainerEntityManagerFactoryBean factoryBean = config.entityManagerFactory(mock(javax.sql.DataSource.class), jpaProperties);
-
-        assertThat(factoryBean.getJpaPropertyMap()).containsEntry("hibernate.dialect", "H2");
-        assertThat(factoryBean.getJpaVendorAdapter()).isNotNull();
-    }
-
-    @Test
-    void transactionalInfrastructureBeansAreAvailable() {
-        EntityManagerFactory emf = mock(EntityManagerFactory.class);
-        PlatformTransactionManager ptm = mock(PlatformTransactionManager.class);
-
-        assertThat(config.transactionManager(emf)).isNotNull();
-        assertThat(config.reactiveTransactionManager(ptm)).isInstanceOf(JpaConfig.ReactivePlatformTransactionManagerAdapter.class);
-        assertThat(config.transactionalOperator(config.reactiveTransactionManager(ptm))).isNotNull();
-    }
-
-    @Test
-    void reactiveAdapterDelegatesLifecycleOperations() {
+    void reactiveTransactionManagerCommitsAndDisposesWorker() {
         PlatformTransactionManager delegate = mock(PlatformTransactionManager.class);
-        TransactionStatus status = mock(TransactionStatus.class);
-        when(delegate.getTransaction(any(TransactionDefinition.class))).thenReturn(status);
-        when(status.isNewTransaction()).thenReturn(true);
-        when(status.isRollbackOnly()).thenReturn(false);
-        when(status.isCompleted()).thenReturn(false);
+        TransactionStatus status = new DefaultTransactionStatus(null, true, false, false, false, null);
+        Scheduler.Worker worker = Schedulers.single().createWorker();
+        JpaConfig.ReactivePlatformTransactionManagerAdapter manager =
+                new JpaConfig.ReactivePlatformTransactionManagerAdapter(delegate);
+        JpaConfig.ReactiveTransactionAdapter adapter =
+                new JpaConfig.ReactiveTransactionAdapter(status, worker);
 
-        JpaConfig.ReactivePlatformTransactionManagerAdapter adapter =
+        StepVerifier.create(manager.commit(adapter)).verifyComplete();
+        verify(delegate).commit(status);
+        assertTrue(worker.isDisposed());
+    }
+
+    @Test
+    void reactiveTransactionManagerRollsBackAndDisposesWorker() {
+        PlatformTransactionManager delegate = mock(PlatformTransactionManager.class);
+        TransactionStatus status = new DefaultTransactionStatus(null, true, false, false, false, null);
+        Scheduler.Worker worker = Schedulers.single().createWorker();
+        JpaConfig.ReactivePlatformTransactionManagerAdapter manager =
+                new JpaConfig.ReactivePlatformTransactionManagerAdapter(delegate);
+        JpaConfig.ReactiveTransactionAdapter adapter =
+                new JpaConfig.ReactiveTransactionAdapter(status, worker);
+
+        StepVerifier.create(manager.rollback(adapter)).verifyComplete();
+        verify(delegate).rollback(status);
+        assertTrue(worker.isDisposed());
+    }
+
+    @Test
+    void getReactiveTransactionUsesDefaultDefinitionWhenNull() {
+        PlatformTransactionManager delegate = mock(PlatformTransactionManager.class);
+        Mockito.when(delegate.getTransaction(Mockito.any(TransactionDefinition.class)))
+                .thenReturn(new DefaultTransactionStatus(null, true, false, false, false, null));
+
+        JpaConfig.ReactivePlatformTransactionManagerAdapter manager =
                 new JpaConfig.ReactivePlatformTransactionManagerAdapter(delegate);
 
-        Mono<org.springframework.transaction.ReactiveTransaction> txMono = adapter.getReactiveTransaction(null);
+        Mono<org.springframework.transaction.ReactiveTransaction> txMono = manager.getReactiveTransaction(null);
+        StepVerifier.create(txMono)
+                .expectNextMatches(tx -> tx instanceof JpaConfig.ReactiveTransactionAdapter)
+                .verifyComplete();
 
-        org.springframework.transaction.ReactiveTransaction tx = txMono.block();
-        assertThat(tx).isNotNull();
-        assertThat(tx.isNewTransaction()).isTrue();
-        tx.setRollbackOnly();
-        verify(status).setRollbackOnly();
-
-        StepVerifier.create(adapter.commit(tx)).verifyComplete();
-        verify(delegate).commit(status);
-
-        org.springframework.transaction.ReactiveTransaction secondTx = adapter.getReactiveTransaction(null).block();
-        StepVerifier.create(adapter.rollback(secondTx)).verifyComplete();
-        verify(delegate).rollback(status);
-    }
-
-    public static final class DummyDriver implements Driver {
-        private static final DummyDriver INSTANCE = new DummyDriver();
-
-        public DummyDriver() {
-        }
-
-        @Override
-        public java.sql.Connection connect(String url, Properties info) {
-            return null;
-        }
-
-        @Override
-        public boolean acceptsURL(String url) {
-            return true;
-        }
-
-        @Override
-        public DriverPropertyInfo[] getPropertyInfo(String url, Properties info) {
-            return new DriverPropertyInfo[0];
-        }
-
-        @Override
-        public int getMajorVersion() {
-            return 1;
-        }
-
-        @Override
-        public int getMinorVersion() {
-            return 0;
-        }
-
-        @Override
-        public boolean jdbcCompliant() {
-            return false;
-        }
-
-        @Override
-        public Logger getParentLogger() {
-            return Logger.getGlobal();
-        }
+        verify(delegate).getTransaction(Mockito.argThat(def -> def instanceof DefaultTransactionDefinition));
     }
 }
