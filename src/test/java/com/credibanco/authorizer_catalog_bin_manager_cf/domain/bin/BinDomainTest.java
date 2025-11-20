@@ -56,6 +56,27 @@ class BinDomainTest {
 
     @ParameterizedTest
     @CsvSource({
+            " ,DEBITO,12",
+            "NEW,OTRO,12",
+            "NEW,DEBITO,1A"
+    })
+    void updateBasicsValidatesInputs(String name, String typeBin, String typeAccount) {
+        Bin bin = Bin.createNew("123456", "NAME", "DEBITO", "12", "CC", "DESC", "N", null, null);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> bin.updateBasics(name, typeBin, typeAccount, "NC", "DESC", "N", null, "user"));
+    }
+
+    @Test
+    void updateBasicsEnforcesExtendedBinLimits() {
+        Bin bin = Bin.createNew("123456", "NAME", "DEBITO", "12", "CC", "DESC", "Y", 1, null);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> bin.updateBasics("NEW", "DEBITO", "12", "NC", "DESC", "Y", 4, "user"));
+    }
+
+    @ParameterizedTest
+    @CsvSource({
             "12345,NAME,DEBITO,12,CC,DESC,N," ,
             "123456, ,DEBITO,12,CC,DESC,N,",
             "123456,NAME,OTRO,12,CC,DESC,N,",
