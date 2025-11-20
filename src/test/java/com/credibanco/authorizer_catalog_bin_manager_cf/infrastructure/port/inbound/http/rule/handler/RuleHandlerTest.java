@@ -11,12 +11,19 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.validatio
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
+import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
+import org.springframework.mock.web.server.MockServerWebExchange;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.reactive.function.server.RouterFunction;
+import org.springframework.web.reactive.function.server.RouterFunctions;
+import org.springframework.web.reactive.function.server.ServerRequest;
+import org.springframework.web.reactive.function.server.HandlerStrategies;
 import org.springframework.web.reactive.function.server.ServerResponse;
+import org.springframework.web.reactive.function.server.ServerResponse.Context;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -32,6 +39,7 @@ class RuleHandlerTest {
     private ValidationUtil validationUtil;
     private ActorProvider actorProvider;
     private WebTestClient client;
+    private RuleHandler handler;
 
     @BeforeEach
     void setup() {
@@ -45,7 +53,7 @@ class RuleHandlerTest {
         validationUtil = mock(ValidationUtil.class);
         actorProvider = mock(ActorProvider.class);
 
-        RuleHandler handler = new RuleHandler(createUC, updateUC, changeStatusUC, getUC, listUC, mapRuleUC, listRulesUC,
+        handler = new RuleHandler(createUC, updateUC, changeStatusUC, getUC, listUC, mapRuleUC, listRulesUC,
                 validationUtil, actorProvider);
         RuleRouter router = new RuleRouter(handler);
         try {
@@ -160,5 +168,61 @@ class RuleHandlerTest {
                 .expectStatus().isOk()
                 .expectBody()
                 .jsonPath("$.data[0].validationId").isEqualTo(5);
+    }
+
+    @Test
+    void listRulesForSubtypeReportsEmptyMessageForActive() {
+        when(listRulesUC.execute(anyString(), anyString(), anyString(), anyInt(), anyInt()))
+                .thenReturn(Flux.empty());
+
+        MockServerWebExchange exchange = MockServerWebExchange.from(
+                MockServerHttpRequest.get("/v1/subtypes/ST/bins/BIN/rules?status=A&page=0&size=5").build());
+        exchange.getAttributes().put(RouterFunctions.URI_TEMPLATE_VARIABLES_ATTRIBUTE,
+                java.util.Map.of("subtypeCode", "ST", "binEfectivo", "BIN"));
+        ServerRequest request = ServerRequest.create(exchange, HandlerStrategies.withDefaults().messageReaders());
+
+        Context responseContext = new Context() {
+            @Override
+            public java.util.List<org.springframework.http.codec.HttpMessageWriter<?>> messageWriters() {
+                return HandlerStrategies.withDefaults().messageWriters();
+            }
+
+            @Override
+            public java.util.List<org.springframework.web.reactive.result.view.ViewResolver> viewResolvers() {
+                return HandlerStrategies.withDefaults().viewResolvers();
+            }
+        };
+
+        handler.listRulesForSubtype(request)
+                .flatMap(resp -> resp.writeTo(exchange, responseContext))
+                .block();
+
+        String body = exchange.getResponse().getBodyAsString().block();
+        assertThat(body).contains("no tiene reglas activas");
+    }
+
+    @Test
+    void listRulesForSubtypeBySubtypeUsesNeutralDetailWhenItemsPresent() {
+        ValidationMap mapped = ValidationMap.createNew("ST", "123456", 5L, null, null, null, "upd");
+        when(listRulesUC.execute(eq("ST"), eq("I"), anyInt(), anyInt()))
+                .thenReturn(Flux.just(mapped));
+
+        client.get().uri("/v1/subtypes/ST/rules?status=I&page=0&size=5")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.detail").isEqualTo("Operación exitosa")
+                .jsonPath("$.data[0].subtypeCode").isEqualTo("ST");
+    }
+
+    @Test
+    void createValidationHandlesInvalidDataType() {
+        ValidationCreateRequest request = new ValidationCreateRequest("CODE", "DESC", "UNKNOWN", null, null, null, "creator");
+
+        client.post().uri("/validations/create")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().is5xxServerError();
     }
 }
