@@ -3,7 +3,6 @@ package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inb
 import com.credibanco.authorizer_catalog_bin_manager_cf.application.bin.port.inbound.*;
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.bin.Bin;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.config.security.ActorProvider;
-import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppException;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.bin.dto.BinCreateRequest;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.bin.dto.BinStatusUpdateRequest;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.bin.dto.BinUpdateRequest;
@@ -19,6 +18,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 class BinHandlerTest {
@@ -53,7 +53,10 @@ class BinHandlerTest {
             throw new RuntimeException(e);
         }
 
-        when(validation.validate(any(), any())).thenAnswer(inv -> Mono.just(inv.getArgument(0)));
+        when(validation.validate(any(), any())).thenAnswer(inv -> {
+            Object arg = inv.getArgument(0);
+            return arg == null ? Mono.empty() : Mono.just(arg);
+        });
         when(actorProvider.currentUserId()).thenReturn(Mono.just("secUser"));
     }
 
@@ -83,6 +86,19 @@ class BinHandlerTest {
     }
 
     @Test
+    void getEndpointReturnsAggregate() {
+        Bin bin = Bin.createNew("123456", "NAME", "DEBITO", "12", "CC", "DESC", "N", null, null);
+        when(getUC.execute("123456")).thenReturn(Mono.just(bin));
+
+        client.get().uri("/bins/get/123456")
+                .accept(MediaType.APPLICATION_JSON)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.data.bin").isEqualTo("123456");
+    }
+
+    @Test
     void listEndpointUsesPagination() {
         Bin bin = Bin.createNew("123456", "NAME", "DEBITO", "12", "CC", "DESC", "N", null, null);
         when(listUC.execute(0, 20)).thenReturn(Flux.just(bin));
@@ -93,6 +109,27 @@ class BinHandlerTest {
                 .expectStatus().isOk()
                 .expectBody()
                 .jsonPath("$.data[0].bin").isEqualTo("123456");
+    }
+
+    @Test
+    void listEndpointDefaultsPaginationWhenMissing() {
+        Bin bin = Bin.createNew("123456", "NAME", "DEBITO", "12", "CC", "DESC", "N", null, null);
+        when(listUC.execute(0, 20)).thenReturn(Flux.just(bin));
+
+        client.get().uri("/bins/list")
+                .accept(MediaType.APPLICATION_JSON)
+                .exchange()
+                .expectStatus().isOk();
+
+        verify(listUC).execute(0, 20);
+    }
+
+    @Test
+    void listEndpointRejectsInvalidPagination() {
+        client.get().uri("/bins/list?page=abc")
+                .accept(MediaType.APPLICATION_JSON)
+                .exchange()
+                .expectStatus().is5xxServerError();
     }
 
     @Test
@@ -113,6 +150,17 @@ class BinHandlerTest {
     }
 
     @Test
+    void updateEndpointRejectsOverflowingExtDigits() {
+        BinUpdateRequest request = new BinUpdateRequest("12345678", "NAME", "DEBITO", "12", "CC", "DESC", "Y", "actor", 3);
+
+        client.put().uri("/bins/update")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().is5xxServerError();
+    }
+
+    @Test
     void changeStatusEndpointValidatesBody() {
         Bin aggregate = Bin.createNew("123456", "NAME", "DEBITO", "12", "CC", "DESC", "N", null, null);
         when(changeStatusUC.execute(eq("123456"), eq("I"), any())).thenReturn(Mono.just(aggregate.changeStatus("I", "u")));
@@ -126,5 +174,84 @@ class BinHandlerTest {
                 .expectStatus().isOk()
                 .expectBody()
                 .jsonPath("$.data.status").isEqualTo("I");
+    }
+
+    @Test
+    void changeStatusEndpointRejectsInvalidPath() {
+        BinStatusUpdateRequest request = new BinStatusUpdateRequest("I", "actor");
+
+        client.put().uri("/bins/update/status/12ab")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().is5xxServerError();
+    }
+
+    @Test
+    void createEndpointUsesHeaderActorWhenBodyMissing() {
+        Bin created = Bin.createNew("123456", "NAME", "DEBITO", "12", "CC", "DESC", "N", null, "creator");
+        when(createUC.execute(any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(Mono.just(created));
+        BinCreateRequest request = new BinCreateRequest("123456", "NAME", "DEBITO", "12", "CC", "DESC", "N", null, null);
+
+        client.post().uri("/bins/create")
+                .header("X-User", "headerUser")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isCreated();
+
+        verify(createUC).execute(any(), any(), any(), any(), any(), any(), any(), any(), eq("headerUser"));
+    }
+
+    @Test
+    void createEndpointFallsBackToSecurityContext() {
+        Bin created = Bin.createNew("123456", "NAME", "DEBITO", "12", "CC", "DESC", "N", null, "creator");
+        when(createUC.execute(any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(Mono.just(created));
+        when(actorProvider.currentUserId()).thenReturn(Mono.just("  secUser  "));
+        BinCreateRequest request = new BinCreateRequest("123456", "NAME", "DEBITO", "12", "CC", "DESC", "N", " ", null);
+
+        client.post().uri("/bins/create")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isCreated();
+
+        verify(createUC).execute(any(), any(), any(), any(), any(), any(), any(), any(), eq("secUser"));
+    }
+
+    @Test
+    void createEndpointRejectsBinExtDigitsWhenUsesExtIsNo() {
+        BinCreateRequest request = new BinCreateRequest("123456", "NAME", "DEBITO", "12", "CC", "DESC", "N", null, 2);
+
+        client.post().uri("/bins/create")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().is5xxServerError();
+
+        verifyNoInteractions(createUC);
+    }
+
+    @Test
+    void updateEndpointMapsValidationIllegalArgumentException() {
+        BinUpdateRequest request = new BinUpdateRequest("123456", "NAME", "DEBITO", "12", "CC", "DESC", "N", "actor", null);
+        when(validation.validate(any(), any())).thenReturn(Mono.error(new IllegalArgumentException("bad")));
+
+        client.put().uri("/bins/update")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().is5xxServerError();
+    }
+
+    @Test
+    void createEndpointRejectsExtDigitsOverflow() {
+        BinCreateRequest request = new BinCreateRequest("12345678", "NAME", "DEBITO", "12", "CC", "DESC", "Y", null, 3);
+
+        client.post().uri("/bins/create")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().is5xxServerError();
     }
 }
