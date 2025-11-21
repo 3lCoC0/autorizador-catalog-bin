@@ -7,9 +7,13 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.OffsetDateTime;
 
+@Setter
+@Getter
 @Entity
 @Table(name = "SUBTYPE_COMMERCE_PLAN")
 public class SubtypeCommercePlanEntity {
@@ -35,51 +39,4 @@ public class SubtypeCommercePlanEntity {
     @Column(name = "UPDATED_BY")
     private String updatedBy;
 
-    public Long getSubtypePlanId() {
-        return subtypePlanId;
-    }
-
-    public void setSubtypePlanId(Long subtypePlanId) {
-        this.subtypePlanId = subtypePlanId;
-    }
-
-    public String getSubtypeCode() {
-        return subtypeCode;
-    }
-
-    public void setSubtypeCode(String subtypeCode) {
-        this.subtypeCode = subtypeCode;
-    }
-
-    public Long getPlanId() {
-        return planId;
-    }
-
-    public void setPlanId(Long planId) {
-        this.planId = planId;
-    }
-
-    public OffsetDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(OffsetDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public OffsetDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(OffsetDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
-    public String getUpdatedBy() {
-        return updatedBy;
-    }
-
-    public void setUpdatedBy(String updatedBy) {
-        this.updatedBy = updatedBy;
-    }
 }

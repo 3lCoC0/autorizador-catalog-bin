@@ -2,7 +2,7 @@ package com.credibanco.authorizer_catalog_bin_manager_cf.domain.bin;
 
 import java.time.OffsetDateTime;
 import java.util.Objects;
-import java.util.regex.Pattern;
+
 
 public record Bin(
         String bin,
@@ -14,9 +14,9 @@ public record Bin(
         String status,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt,
-        String updatedBy,          // <-- puede ser null
-        String usesBinExt,         // <-- 'Y'|'N'
-        Integer binExtDigits    // <-- 1|2|3 si usesBinExt='Y', si 'N' => null
+        String updatedBy,
+        String usesBinExt,
+        Integer binExtDigits
 ) {
 
 

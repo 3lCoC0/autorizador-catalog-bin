@@ -9,8 +9,4 @@ public interface SubtypePlanRepository {
 
     Mono<SubtypePlanLink> findBySubtype(String subtypeCode);
 
-
-    default Mono<SubtypePlanLink> findBySubtypeCode(String subtypeCode) {
-        return findBySubtype(subtypeCode);
-    }
 }

@@ -1,7 +1,7 @@
 package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.rule.dto;
 
 
-import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.jackson.BlankAsNull;
+
 import com.credibanco.authorizer_catalog_bin_manager_cf.shared.validation.SafeText;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

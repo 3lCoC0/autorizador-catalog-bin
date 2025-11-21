@@ -30,7 +30,7 @@ public record AddPlanItemService(CommercePlanRepository planRepo,
                 .switchIfEmpty(Mono.<com.credibanco.authorizer_catalog_bin_manager_cf.domain.plan.CommercePlan>error(
                         new AppException(AppError.PLAN_NOT_FOUND)))
                 .flatMap(p -> {
-                    // Validación por modo
+
                     if (p.validationMode() == CommerceValidationMode.MCC) {
                         if (value == null || !value.matches("^\\d{4}$")) {
                             return Mono.<PlanItem>error(new AppException(AppError.PLAN_ITEM_INVALID_DATA,
@@ -152,13 +152,13 @@ public record AddPlanItemService(CommercePlanRepository planRepo,
 
     private Flux<String> existingValues(Long planId, List<String> values) {
         if (values.isEmpty()) return Flux.empty();
-        List<List<String>> chunks = chunk(values, BATCH_SIZE);
+        List<List<String>> chunks = chunk(values);
         return Flux.fromIterable(chunks)
                 .concatMap(chunk -> itemRepo.findExistingValues(planId, chunk));
     }
 
     private Mono<Integer> insertBatches(Long planId, CommerceValidationMode mode, List<String> values, String by) {
-        List<List<String>> chunks = chunk(values, BATCH_SIZE);
+        List<List<String>> chunks = chunk(values);
         return Flux.fromIterable(chunks)
                 .concatMap(chunk -> (mode == CommerceValidationMode.MCC)
                         ? itemRepo.insertMccBulk(planId, chunk, by)
@@ -166,12 +166,12 @@ public record AddPlanItemService(CommercePlanRepository planRepo,
                 .reduce(0, Integer::sum);
     }
 
-    private static <T> List<List<T>> chunk(List<T> list, int size) {
+    private static <T> List<List<T>> chunk(List<T> list) {
         if (list.isEmpty()) return List.of();
-        int n = (list.size() + size - 1) / size;
+        int n = (list.size() + AddPlanItemService.BATCH_SIZE - 1) / AddPlanItemService.BATCH_SIZE;
         List<List<T>> parts = new ArrayList<>(n);
-        for (int i = 0; i < list.size(); i += size) {
-            parts.add(list.subList(i, Math.min(i + size, list.size())));
+        for (int i = 0; i < list.size(); i += AddPlanItemService.BATCH_SIZE) {
+            parts.add(list.subList(i, Math.min(i + AddPlanItemService.BATCH_SIZE, list.size())));
         }
         return parts;
     }

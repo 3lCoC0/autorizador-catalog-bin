@@ -23,15 +23,13 @@ public class JwtValidatorsChain implements OAuth2TokenValidator<Jwt> {
         return delegate.validate(token);
     }
 
-    static class AudienceValidator implements OAuth2TokenValidator<Jwt> {
-        private final String requiredAud;
-        AudienceValidator(String aud) { this.requiredAud = aud; }
+    record AudienceValidator(String requiredAud) implements OAuth2TokenValidator<Jwt> {
         @Override
-        public OAuth2TokenValidatorResult validate(Jwt token) {
-            List<String> aud = token.getAudience();
-            if (aud != null && aud.contains(requiredAud)) return OAuth2TokenValidatorResult.success();
-            return OAuth2TokenValidatorResult.failure(new OAuth2Error("invalid_token",
-                    "Missing required audience: " + requiredAud, null));
+            public OAuth2TokenValidatorResult validate(Jwt token) {
+                List<String> aud = token.getAudience();
+                if (aud != null && aud.contains(requiredAud)) return OAuth2TokenValidatorResult.success();
+                return OAuth2TokenValidatorResult.failure(new OAuth2Error("invalid_token",
+                        "Missing required audience: " + requiredAud, null));
+            }
         }
-    }
 }

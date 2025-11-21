@@ -7,9 +7,13 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.OffsetDateTime;
 
+@Setter
+@Getter
 @Entity
 @Table(name = "COMMERCE_PLAN_ITEM")
 public class CommercePlanItemEntity {
@@ -40,70 +44,6 @@ public class CommercePlanItemEntity {
 
     @Column(name = "UPDATED_BY")
     private String updatedBy;
-
-    public Long getPlanItemId() {
-        return planItemId;
-    }
-
-    public void setPlanItemId(Long planItemId) {
-        this.planItemId = planItemId;
-    }
-
-    public Long getPlanId() {
-        return planId;
-    }
-
-    public void setPlanId(Long planId) {
-        this.planId = planId;
-    }
-
-    public String getMcc() {
-        return mcc;
-    }
-
-    public void setMcc(String mcc) {
-        this.mcc = mcc;
-    }
-
-    public String getMerchantId() {
-        return merchantId;
-    }
-
-    public void setMerchantId(String merchantId) {
-        this.merchantId = merchantId;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public OffsetDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(OffsetDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public OffsetDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(OffsetDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
-    public String getUpdatedBy() {
-        return updatedBy;
-    }
-
-    public void setUpdatedBy(String updatedBy) {
-        this.updatedBy = updatedBy;
-    }
 
     public String getValue() {
         return mcc != null ? mcc : merchantId;

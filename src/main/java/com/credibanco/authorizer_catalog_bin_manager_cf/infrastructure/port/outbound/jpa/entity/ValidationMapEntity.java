@@ -10,9 +10,13 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.OffsetDateTime;
 
+@Setter
+@Getter
 @Entity
 @Table(name = "SUBTYPE_VALIDATION_MAP")
 public class ValidationMapEntity {
@@ -57,99 +61,4 @@ public class ValidationMapEntity {
     @JoinColumn(name = "VALIDATION_ID", referencedColumnName = "VALIDATION_ID", insertable = false, updatable = false)
     private ValidationEntity validation;
 
-    public Long getMapId() {
-        return mapId;
-    }
-
-    public void setMapId(Long mapId) {
-        this.mapId = mapId;
-    }
-
-    public String getSubtypeCode() {
-        return subtypeCode;
-    }
-
-    public void setSubtypeCode(String subtypeCode) {
-        this.subtypeCode = subtypeCode;
-    }
-
-    public String getBin() {
-        return bin;
-    }
-
-    public void setBin(String bin) {
-        this.bin = bin;
-    }
-
-    public Long getValidationId() {
-        return validationId;
-    }
-
-    public void setValidationId(Long validationId) {
-        this.validationId = validationId;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public String getValueFlag() {
-        return valueFlag;
-    }
-
-    public void setValueFlag(String valueFlag) {
-        this.valueFlag = valueFlag;
-    }
-
-    public Double getValueNum() {
-        return valueNum;
-    }
-
-    public void setValueNum(Double valueNum) {
-        this.valueNum = valueNum;
-    }
-
-    public String getValueText() {
-        return valueText;
-    }
-
-    public void setValueText(String valueText) {
-        this.valueText = valueText;
-    }
-
-    public OffsetDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(OffsetDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public OffsetDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(OffsetDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
-    public String getUpdatedBy() {
-        return updatedBy;
-    }
-
-    public void setUpdatedBy(String updatedBy) {
-        this.updatedBy = updatedBy;
-    }
-
-    public ValidationEntity getValidation() {
-        return validation;
-    }
-
-    public void setValidation(ValidationEntity validation) {
-        this.validation = validation;
-    }
 }

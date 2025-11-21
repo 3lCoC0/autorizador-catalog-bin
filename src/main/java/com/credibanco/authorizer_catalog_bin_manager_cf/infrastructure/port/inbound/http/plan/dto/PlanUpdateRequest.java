@@ -4,7 +4,7 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.domain.plan.CommerceVali
 import com.credibanco.authorizer_catalog_bin_manager_cf.shared.validation.SafeText;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
+
 
 public record PlanUpdateRequest(
         @NotNull(message = "name no puede ser nulo")

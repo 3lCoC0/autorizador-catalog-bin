@@ -5,7 +5,7 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.shared.validation.SafeTe
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
+
 
 public record AgencyUpdateRequest(
         @NotBlank(message = "name no puede ser vacio")

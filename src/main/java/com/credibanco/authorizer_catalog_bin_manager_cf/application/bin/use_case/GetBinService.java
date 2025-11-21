@@ -9,11 +9,11 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
 @Slf4j
-public class GetBinService implements GetBinUseCase {
-    private final BinRepository repo;
-    public GetBinService(BinRepository repo) { this.repo = repo; }
+public record GetBinService(BinRepository repo) implements GetBinUseCase {
 
-    private static long ms(long t0) { return (System.nanoTime() - t0) / 1_000_000; }
+    private static long ms(long t0) {
+        return (System.nanoTime() - t0) / 1_000_000;
+    }
 
     @Override
     public Mono<Bin> execute(String bin) {

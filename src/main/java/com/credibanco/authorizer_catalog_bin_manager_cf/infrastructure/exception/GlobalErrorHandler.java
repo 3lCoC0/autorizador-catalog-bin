@@ -3,7 +3,6 @@ package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exceptio
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.config.http.ApiError;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.config.http.ApiResponses;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 import jakarta.validation.ConstraintViolationException;
@@ -35,7 +34,6 @@ import java.util.concurrent.TimeoutException;
 
 /**
  * Handler global de errores.
- *
  * Responde SIEMPRE con envelope JSON:
  * {
  *   "responseCode": "<num>",
@@ -44,7 +42,6 @@ import java.util.concurrent.TimeoutException;
  *   "timestamp": "<UTC ISO-8601>",
  *   "path": "<ruta>"
  * }
- *
  * - Si la excepción es AppException, usa el AppError provisto (código numérico y HTTP status).
  * - Si no, aplica mapeos de fallback mientras migramos a AppException por dominio.
  */
@@ -105,26 +102,20 @@ public class GlobalErrorHandler implements ErrorWebExceptionHandler {
 
 
         } else if (ex instanceof java.util.NoSuchElementException || ex instanceof NotFoundException) {
-            // No encontrado
             var mapped = mapFallbackNotFound(path);
             appError = mapped.error;
             message  = safeMessage(unwrapMessage(ex), mapped.message);
         } else if (ex instanceof IllegalStateException) {
-            // Conflicto de negocio (duplicados, reglas)
             var mapped = mapFallbackConflict(path);
             appError = mapped.error;
             message  = safeMessage(unwrapMessage(ex), mapped.message);
         } else if (isTimeout(ex)) {
-            // Timeouts técnicos
             appError = AppError.INTERNAL;
             message  = "La operación excedió el tiempo de espera.";
         } else {
-            // Desconocido → 500 con código 99
             appError = AppError.INTERNAL;
             message  = "Se produjo un error inesperado.";
         }
-
-        // --- Logging
         if (appError.http.is5xxServerError()) {
             log.error("Unhandled error | httpStatus={} code={} cid={} path={} msg={}",
                     appError.http.value(), appError.code, cid, path, ex.getMessage(), ex);
@@ -133,7 +124,6 @@ public class GlobalErrorHandler implements ErrorWebExceptionHandler {
                     appError.http.value(), appError.code, cid, path, message);
         }
 
-        // --- Construcción del envelope y escritura de respuesta
         ApiError body = ApiResponses.errorEnvelope(appError.code, message, cid, path);
 
         response.setStatusCode(appError.http);
@@ -143,7 +133,7 @@ public class GlobalErrorHandler implements ErrorWebExceptionHandler {
             byte[] json = mapper.writeValueAsBytes(body);
             return response.writeWith(Mono.just(response.bufferFactory().wrap(json)));
         } catch (Exception writeEx) {
-            // Fallback ultraseguro
+
             String fallback = """
                 {"responseCode":"%s","message":"%s","correlationId":"%s","timestamp":"%s","path":"%s"}
                 """.formatted(appError.code, message, cid, Instant.now(), path);
@@ -223,10 +213,6 @@ public class GlobalErrorHandler implements ErrorWebExceptionHandler {
             String m = mie.getOriginalMessage();
             return (m != null && !m.isBlank()) ? m.trim() : trimOrNull(mie.getMessage());
         }
-        if (t instanceof InvalidFormatException ife) {
-            String m = ife.getOriginalMessage();
-            return (m != null && !m.isBlank()) ? m.trim() : trimOrNull(ife.getMessage());
-        }
         if (t instanceof ValueInstantiationException vie) {
             String iae = illegalArgumentMessage(vie);
             if (StringUtils.hasText(iae)) {
@@ -255,27 +241,24 @@ public class GlobalErrorHandler implements ErrorWebExceptionHandler {
     }
 
     private static String safeMessage(String given, String fallback) {
-        if (StringUtils.hasText(given)) return truncate(given.trim(), 500);
+        if (StringUtils.hasText(given)) return truncate(given.trim());
         return fallback;
     }
 
-    private static String truncate(String s, int max) {
-        if (s == null || s.length() <= max) return s;
-        return s.substring(0, max) + "...";
+    private static String truncate(String s) {
+        if (s == null || s.length() <= 500) return s;
+        return s.substring(0, 500) + "...";
     }
 
     private String unwrapMessage(Throwable ex) {
 
 
-        // 1) Si es DecodingException o ServerWebInputException, intenta sacar el mensaje de Jackson
         if (ex instanceof DecodingException || ex instanceof ServerWebInputException) {
-            // Primero, busca la causa más específica
-            // Recorre toda la cadena buscando mensajes "originales" de Jackson
             Throwable cursor = ex;
             while (cursor != null) {
                 String jm = jacksonMessageOrNull(cursor);
                 if (StringUtils.hasText(jm)) {
-                    return truncate(jm, 500);
+                    return truncate(jm);
                 }
                 cursor = cursor.getCause();
             }
@@ -284,7 +267,7 @@ public class GlobalErrorHandler implements ErrorWebExceptionHandler {
             // Intenta extraer el “originalMessage” de Jackson
             String rootMessage = trimOrNull(root.getMessage());
             if (StringUtils.hasText(rootMessage)) {
-                return truncate(rootMessage, 500);
+                return truncate(rootMessage);
             }
         }
 
@@ -294,11 +277,11 @@ public class GlobalErrorHandler implements ErrorWebExceptionHandler {
         Throwable t = ex;
         while (t != null) {
             if (t instanceof IllegalArgumentException && StringUtils.hasText(t.getMessage())) {
-                return truncate(t.getMessage(), 500);
+                return truncate(t.getMessage());
             }
             if (responseStatusReason == null && t instanceof ResponseStatusException rse
                     && StringUtils.hasText(rse.getReason())) {
-                responseStatusReason = truncate(rse.getReason(), 500);
+                responseStatusReason = truncate(rse.getReason());
             }
             t = t.getCause();
         }

@@ -2,11 +2,15 @@ package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.out
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.Objects;
 
+@Setter
+@Getter
 @Embeddable
 public class AgencyEntityId implements Serializable {
 
@@ -19,27 +23,9 @@ public class AgencyEntityId implements Serializable {
     @Column(name = "AGENCY_CODE", nullable = false)
     private String agencyCode;
 
-    public AgencyEntityId() {
-    }
 
     public AgencyEntityId(String subtypeCode, String agencyCode) {
         this.subtypeCode = subtypeCode;
-        this.agencyCode = agencyCode;
-    }
-
-    public String getSubtypeCode() {
-        return subtypeCode;
-    }
-
-    public void setSubtypeCode(String subtypeCode) {
-        this.subtypeCode = subtypeCode;
-    }
-
-    public String getAgencyCode() {
-        return agencyCode;
-    }
-
-    public void setAgencyCode(String agencyCode) {
         this.agencyCode = agencyCode;
     }
 

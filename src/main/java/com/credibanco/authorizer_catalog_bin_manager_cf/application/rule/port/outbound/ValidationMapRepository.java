@@ -1,11 +1,10 @@
 package com.credibanco.authorizer_catalog_bin_manager_cf.application.rule.port.outbound;
 
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule.ValidationMap;
-import com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule.Validation;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.time.OffsetDateTime;
+
 
 public interface ValidationMapRepository {
     Mono<Boolean> existsActive(String subtypeCode, String bin, Long validationId);

@@ -9,11 +9,11 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 
 @Slf4j
-public class ListBinsService implements ListBinsUseCase {
-    private final BinRepository repo;
-    public ListBinsService(BinRepository repo) { this.repo = repo; }
+public record ListBinsService(BinRepository repo) implements ListBinsUseCase {
 
-    private static long ms(long t0) { return (System.nanoTime() - t0) / 1_000_000; }
+    private static long ms(long t0) {
+        return (System.nanoTime() - t0) / 1_000_000;
+    }
 
     @Override
     public Flux<Bin> execute(int page, int size) {
@@ -22,7 +22,7 @@ public class ListBinsService implements ListBinsUseCase {
 
         if (page < 0 || size <= 0) {
             return Flux.error(new AppException(AppError.BIN_INVALID_DATA
-                    ));
+            ));
         }
 
         return repo.findAll(page, size)

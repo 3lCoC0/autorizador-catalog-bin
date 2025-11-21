@@ -4,9 +4,13 @@ import jakarta.persistence.Column;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.OffsetDateTime;
 
+@Setter
+@Getter
 @Entity
 @Table(name = "AGENCY")
 public class AgencyEntity {
@@ -74,171 +78,4 @@ public class AgencyEntity {
     @Column(name = "UPDATED_BY")
     private String updatedBy;
 
-    public AgencyEntityId getId() {
-        return id;
-    }
-
-    public void setId(AgencyEntityId id) {
-        this.id = id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getAgencyNit() {
-        return agencyNit;
-    }
-
-    public void setAgencyNit(String agencyNit) {
-        this.agencyNit = agencyNit;
-    }
-
-    public String getAddress() {
-        return address;
-    }
-
-    public void setAddress(String address) {
-        this.address = address;
-    }
-
-    public String getPhone() {
-        return phone;
-    }
-
-    public void setPhone(String phone) {
-        this.phone = phone;
-    }
-
-    public String getMunicipalityDaneCode() {
-        return municipalityDaneCode;
-    }
-
-    public void setMunicipalityDaneCode(String municipalityDaneCode) {
-        this.municipalityDaneCode = municipalityDaneCode;
-    }
-
-    public String getEmbosserHighlight() {
-        return embosserHighlight;
-    }
-
-    public void setEmbosserHighlight(String embosserHighlight) {
-        this.embosserHighlight = embosserHighlight;
-    }
-
-    public String getEmbosserPins() {
-        return embosserPins;
-    }
-
-    public void setEmbosserPins(String embosserPins) {
-        this.embosserPins = embosserPins;
-    }
-
-    public String getCardCustodianPrimary() {
-        return cardCustodianPrimary;
-    }
-
-    public void setCardCustodianPrimary(String cardCustodianPrimary) {
-        this.cardCustodianPrimary = cardCustodianPrimary;
-    }
-
-    public String getCardCustodianPrimaryId() {
-        return cardCustodianPrimaryId;
-    }
-
-    public void setCardCustodianPrimaryId(String cardCustodianPrimaryId) {
-        this.cardCustodianPrimaryId = cardCustodianPrimaryId;
-    }
-
-    public String getCardCustodianSecondary() {
-        return cardCustodianSecondary;
-    }
-
-    public void setCardCustodianSecondary(String cardCustodianSecondary) {
-        this.cardCustodianSecondary = cardCustodianSecondary;
-    }
-
-    public String getCardCustodianSecondaryId() {
-        return cardCustodianSecondaryId;
-    }
-
-    public void setCardCustodianSecondaryId(String cardCustodianSecondaryId) {
-        this.cardCustodianSecondaryId = cardCustodianSecondaryId;
-    }
-
-    public String getPinCustodianPrimary() {
-        return pinCustodianPrimary;
-    }
-
-    public void setPinCustodianPrimary(String pinCustodianPrimary) {
-        this.pinCustodianPrimary = pinCustodianPrimary;
-    }
-
-    public String getPinCustodianPrimaryId() {
-        return pinCustodianPrimaryId;
-    }
-
-    public void setPinCustodianPrimaryId(String pinCustodianPrimaryId) {
-        this.pinCustodianPrimaryId = pinCustodianPrimaryId;
-    }
-
-    public String getPinCustodianSecondary() {
-        return pinCustodianSecondary;
-    }
-
-    public void setPinCustodianSecondary(String pinCustodianSecondary) {
-        this.pinCustodianSecondary = pinCustodianSecondary;
-    }
-
-    public String getPinCustodianSecondaryId() {
-        return pinCustodianSecondaryId;
-    }
-
-    public void setPinCustodianSecondaryId(String pinCustodianSecondaryId) {
-        this.pinCustodianSecondaryId = pinCustodianSecondaryId;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public OffsetDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(OffsetDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public OffsetDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(OffsetDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
-    public String getUpdatedBy() {
-        return updatedBy;
-    }
-
-    public void setUpdatedBy(String updatedBy) {
-        this.updatedBy = updatedBy;
-    }
 }

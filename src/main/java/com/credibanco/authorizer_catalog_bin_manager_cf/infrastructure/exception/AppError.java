@@ -6,14 +6,12 @@ import java.util.Set;
 
 /**
  * Catálogo central de errores de la API con códigos NUMÉRICOS.
- *
  * Convención de numeración:
  *   - BIN      : 01..??  (empezamos aquí)
  *   - SUBTYPE  : continuar desde el siguiente número disponible
  *   - PLAN     : continuar desde el siguiente número disponible
  *   - ...
  *   - INTERNAL : 99 (fallback de servidor)
- *
  * NOTA: el "código" es el que verá el consumidor en response.responseCode.
  */
 public enum AppError {
@@ -75,9 +73,6 @@ public enum AppError {
         this.defaultMessage = defaultMessage;
     }
 
-    /**
-     * Verificación en arranque: todos los códigos deben ser únicos.
-     */
     static {
         Set<String> seen = new HashSet<>();
         for (var e : AppError.values()) {

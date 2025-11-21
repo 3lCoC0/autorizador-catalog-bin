@@ -1,7 +1,6 @@
 package com.credibanco.authorizer_catalog_bin_manager_cf.domain.agency;
 
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.Objects;
 
 public record Agency(

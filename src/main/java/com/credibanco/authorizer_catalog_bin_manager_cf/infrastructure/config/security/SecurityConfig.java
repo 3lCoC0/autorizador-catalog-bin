@@ -8,7 +8,6 @@ import org.springframework.security.authentication.ReactiveAuthenticationManager
 import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity;
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2Error;
@@ -33,9 +32,9 @@ import io.netty.handler.ssl.SslContextBuilder;
 import reactor.netty.http.client.HttpClient;
 
 import javax.net.ssl.TrustManagerFactory;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -53,10 +52,10 @@ public class SecurityConfig {
     private String jwkSetUri;
 
     @Value("${internal.jwt.expected-issuer}")
-    private String expectedIssuer;            // authorizer-gateway
+    private String expectedIssuer;
 
     @Value("${internal.jwt.required-audience}")
-    private String requiredAudience;          // catalog-api
+    private String requiredAudience;
 
     @Value("${internal.jwt.jwk.trusted-cert-path:}")
     private String jwkTrustedCertificatePath;
@@ -108,27 +107,24 @@ public class SecurityConfig {
     public ReactiveAuthenticationManager reactiveAuthenticationManager(ReactiveJwtDecoder decoder) {
         JwtReactiveAuthenticationManager manager = new JwtReactiveAuthenticationManager(decoder);
 
-        // Converter para mapear roles -> authorities
         JwtAuthenticationConverter jwtConverter = new JwtAuthenticationConverter();
         jwtConverter.setJwtGrantedAuthoritiesConverter(jwt -> {
-            // 1) roles (claim plano)
             List<String> roles = jwt.getClaimAsStringList("roles");
-            // 2) fallback realm_access.roles
-            if (roles == null) {
-                Map<String, Object> ra = jwt.getClaim("realm_access");
-                if (ra != null && ra.get("roles") instanceof List<?> l) {
-                    roles = (List<String>) (List<?>) l;
+            Map<String, Object> ra = jwt.getClaim("realm_access");
+            if (ra != null) {
+                var rawRoles = ra.get("roles");
+                if (rawRoles instanceof List<?> rawList) {
+                    roles = rawList.stream()
+                            .filter(Objects::nonNull)
+                            .map(Object::toString)
+                            .toList();
                 }
             }
             if (roles == null) roles = List.of();
-
-            // opcional: también podrías usar JwtGrantedAuthoritiesConverter si tuvieras "scope" o "scp"
-            Collection<GrantedAuthority> auths = roles.stream()
+            return roles.stream()
                     .map(r -> r.startsWith("ROLE_") ? r : "ROLE_" + r)
                     .map(SimpleGrantedAuthority::new)
                     .collect(Collectors.toList());
-
-            return auths;
         });
 
         manager.setJwtAuthenticationConverter(jwt -> Mono.just(jwtConverter.convert(jwt)));
@@ -145,9 +141,7 @@ public class SecurityConfig {
                 .webClient(buildJwkWebClient())
                 .build();
 
-        OAuth2TokenValidator<Jwt> defaults = JwtValidators.createDefault(); // exp/nbf, etc.
-
-        // <<< CAMBIO CLAVE: NO usar jwt.getIssuer() >>>
+        OAuth2TokenValidator<Jwt> defaults = JwtValidators.createDefault();
         OAuth2TokenValidator<Jwt> withIssuer = jwt -> {
             String iss = jwt.getClaimAsString("iss");
             return expectedIssuer.equals(iss)

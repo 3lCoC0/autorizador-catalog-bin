@@ -2,11 +2,15 @@ package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.out
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.Objects;
 
+@Setter
+@Getter
 @Embeddable
 public class SubtypeEntityId implements Serializable {
 
@@ -19,27 +23,9 @@ public class SubtypeEntityId implements Serializable {
     @Column(name = "BIN", nullable = false, length = 9)
     private String bin;
 
-    public SubtypeEntityId() {
-    }
 
     public SubtypeEntityId(String subtypeCode, String bin) {
         this.subtypeCode = subtypeCode;
-        this.bin = bin;
-    }
-
-    public String getSubtypeCode() {
-        return subtypeCode;
-    }
-
-    public void setSubtypeCode(String subtypeCode) {
-        this.subtypeCode = subtypeCode;
-    }
-
-    public String getBin() {
-        return bin;
-    }
-
-    public void setBin(String bin) {
         this.bin = bin;
     }
 

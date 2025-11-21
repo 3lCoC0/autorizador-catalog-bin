@@ -5,6 +5,8 @@ import com.zaxxer.hikari.HikariDataSource;
 import jakarta.persistence.EntityManagerFactory;
 import java.util.Map;
 import javax.sql.DataSource;
+
+import org.jetbrains.annotations.NotNull;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.boot.autoconfigure.orm.jpa.JpaProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -91,6 +93,7 @@ public class JpaConfig {
             this.delegate = delegate;
         }
 
+        @NotNull
         @Override
         public Mono<ReactiveTransaction> getReactiveTransaction(TransactionDefinition definition) {
             TransactionDefinition txDefinition =
@@ -98,7 +101,7 @@ public class JpaConfig {
             return Mono.defer(() -> {
                 Scheduler.Worker worker = scheduler.createWorker();
                 return Mono.<ReactiveTransaction>create(sink -> {
-                            sink.onCancel(worker::dispose);
+                            sink.onCancel(worker);
                             worker.schedule(() -> {
                                 try {
                                     TransactionStatus status = delegate.getTransaction(txDefinition);
@@ -112,8 +115,9 @@ public class JpaConfig {
             });
         }
 
+        @NotNull
         @Override
-        public Mono<Void> commit(ReactiveTransaction transaction) {
+        public Mono<Void> commit(@NotNull ReactiveTransaction transaction) {
             ReactiveTransactionAdapter adapter = asAdapter(transaction);
             return Mono.<Void>create(sink -> {
                         sink.onCancel(adapter::disposeWorker);
@@ -130,8 +134,9 @@ public class JpaConfig {
                     });
         }
 
+        @NotNull
         @Override
-        public Mono<Void> rollback(ReactiveTransaction transaction) {
+        public Mono<Void> rollback(@NotNull ReactiveTransaction transaction) {
             ReactiveTransactionAdapter adapter = asAdapter(transaction);
             return Mono.<Void>create(sink -> {
                         sink.onCancel(adapter::disposeWorker);
@@ -155,46 +160,31 @@ public class JpaConfig {
         }
     }
 
-    static final class ReactiveTransactionAdapter implements ReactiveTransaction {
-
-        private final TransactionStatus status;
-        private final Scheduler.Worker worker;
-
-        ReactiveTransactionAdapter(TransactionStatus status, Scheduler.Worker worker) {
-            this.status = status;
-            this.worker = worker;
-        }
-
-        private TransactionStatus status() {
-            return status;
-        }
-
-        private Scheduler.Worker worker() {
-            return worker;
-        }
+    record ReactiveTransactionAdapter(TransactionStatus status,
+                                      Scheduler.Worker worker) implements ReactiveTransaction {
 
         private void disposeWorker() {
-            worker.dispose();
-        }
+                worker.dispose();
+            }
 
-        @Override
-        public boolean isNewTransaction() {
-            return status.isNewTransaction();
-        }
+            @Override
+            public boolean isNewTransaction() {
+                return status.isNewTransaction();
+            }
 
-        @Override
-        public boolean isRollbackOnly() {
-            return status.isRollbackOnly();
-        }
+            @Override
+            public boolean isRollbackOnly() {
+                return status.isRollbackOnly();
+            }
 
-        @Override
-        public void setRollbackOnly() {
-            status.setRollbackOnly();
-        }
+            @Override
+            public void setRollbackOnly() {
+                status.setRollbackOnly();
+            }
 
-        @Override
-        public boolean isCompleted() {
-            return status.isCompleted();
+            @Override
+            public boolean isCompleted() {
+                return status.isCompleted();
+            }
         }
-    }
 }
