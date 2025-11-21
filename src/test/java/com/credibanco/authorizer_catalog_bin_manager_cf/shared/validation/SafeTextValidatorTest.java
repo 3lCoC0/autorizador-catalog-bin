@@ -15,7 +15,7 @@ class SafeTextValidatorTest {
     @Test
     void acceptsNullWithoutViolations() {
         SafeTextValidator validator = new SafeTextValidator();
-        validator.initialize(mockAnnotation(true, false, true, "DROP", "msg"));
+        validator.initialize(mockAnnotation(true, false, true, "msg"));
         ConstraintValidatorContext ctx = mock(ConstraintValidatorContext.class);
 
         assertTrue(validator.isValid(null, ctx));
@@ -25,7 +25,7 @@ class SafeTextValidatorTest {
     @Test
     void validatesAgainstAllowedCharacterClasses() {
         SafeTextValidator validator = new SafeTextValidator();
-        validator.initialize(mockAnnotation(true, false, false, "DROP", "msg"));
+        validator.initialize(mockAnnotation(true, false, false, "msg"));
         ConstraintValidatorContext ctx = mock(ConstraintValidatorContext.class);
 
         assertTrue(validator.isValid("Árbol123", ctx));
@@ -35,7 +35,7 @@ class SafeTextValidatorTest {
     @Test
     void rejectsForbiddenWordAndBuildsCustomMessage() {
         SafeTextValidator validator = new SafeTextValidator();
-        SafeText annotation = mockAnnotation(false, true, false, "DROP", "Solo letras{underscore}{spaces}{digits}");
+        SafeText annotation = mockAnnotation(false, true, false, "Solo letras{underscore}{spaces}{digits}");
         validator.initialize(annotation);
 
         ConstraintValidatorContext ctx = mock(ConstraintValidatorContext.class);
@@ -53,12 +53,12 @@ class SafeTextValidatorTest {
         verify(builder).addConstraintViolation();
     }
 
-    private SafeText mockAnnotation(boolean allowNumbers, boolean allowUnderscore, boolean allowSpaces, String forbidden, String message) {
+    private SafeText mockAnnotation(boolean allowNumbers, boolean allowUnderscore, boolean allowSpaces, String message) {
         InvocationHandler handler = (proxy, method, args) -> switch (method.getName()) {
             case "allowNumbers" -> allowNumbers;
             case "allowUnderscore" -> allowUnderscore;
             case "allowSpaces" -> allowSpaces;
-            case "forbiddenWord" -> forbidden;
+            case "forbiddenWord" -> "DROP";
             case "message" -> message;
             case "groups", "payload" -> method.getDefaultValue();
             case "annotationType" -> SafeText.class;

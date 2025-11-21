@@ -29,7 +29,6 @@ import java.lang.reflect.Method;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 class AgencyHandlerRouterTest {
@@ -119,7 +118,7 @@ class AgencyHandlerRouterTest {
                 .body(Mono.just(invalid));
 
         StepVerifier.create(handler.changeStatus(req))
-                .expectErrorSatisfies(err -> assertTrue(err instanceof AppException))
+                .expectErrorSatisfies(err -> assertInstanceOf(AppException.class, err))
                 .verify();
     }
 

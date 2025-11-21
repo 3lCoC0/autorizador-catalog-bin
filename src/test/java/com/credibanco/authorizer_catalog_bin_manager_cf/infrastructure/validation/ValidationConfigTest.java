@@ -11,15 +11,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ValidationConfigTest {
 
-    private record Sample(@NotNull String value) { }
+    private record Sample(@NotNull String value) {
+    }
 
     @Test
     void createsBeanValidator() {
         ValidationConfig config = new ValidationConfig();
         Validator validator = config.validator();
-
         assertThat(validator).isNotNull();
         Set<ConstraintViolation<Sample>> violations = validator.validate(new Sample(null));
         assertThat(violations).hasSize(1);
+        Set<ConstraintViolation<Sample>> noViolations = validator.validate(new Sample("ok"));
+        assertThat(noViolations).isEmpty();
     }
 }

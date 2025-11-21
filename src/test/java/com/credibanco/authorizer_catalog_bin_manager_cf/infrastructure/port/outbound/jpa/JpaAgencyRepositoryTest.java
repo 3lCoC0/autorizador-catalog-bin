@@ -4,6 +4,7 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.domain.agency.Agency;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.outbound.jpa.entity.AgencyEntity;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.outbound.jpa.entity.AgencyEntityId;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.outbound.jpa.repository.AgencyJpaRepository;
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.data.domain.PageImpl;
@@ -77,7 +78,7 @@ class JpaAgencyRepositoryTest {
         AgencyJpaRepository repository = mock(AgencyJpaRepository.class);
         JpaAgencyRepository jpaAgencyRepository = new JpaAgencyRepository(repository, new NoOpTransactionManager());
 
-        AgencyEntity entity = buildEntity("SUB", "AG");
+        AgencyEntity entity = buildEntity("AG");
         when(repository.findById(new AgencyEntityId("SUB", "AG"))).thenReturn(Optional.of(entity));
 
         StepVerifier.create(jpaAgencyRepository.findByPk("SUB", "AG"))
@@ -103,14 +104,18 @@ class JpaAgencyRepositoryTest {
                 .verify();
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     @Test
     void findAllBuildsSpecificationAndPaging() {
         AgencyJpaRepository repository = mock(AgencyJpaRepository.class);
         JpaAgencyRepository jpaAgencyRepository = new JpaAgencyRepository(repository, new NoOpTransactionManager());
 
-        AgencyEntity first = buildEntity("SUB", "001");
-        AgencyEntity second = buildEntity("SUB", "002");
-        ArgumentCaptor<Specification<AgencyEntity>> specCaptor = ArgumentCaptor.forClass(Specification.class);
+        AgencyEntity first = buildEntity("001");
+        AgencyEntity second = buildEntity("002");
+
+        ArgumentCaptor<Specification<AgencyEntity>> specCaptor =
+                ArgumentCaptor.forClass((Class) Specification.class);
+
         ArgumentCaptor<PageRequest> pageRequestCaptor = ArgumentCaptor.forClass(PageRequest.class);
 
         when(repository.findAll(specCaptor.capture(), pageRequestCaptor.capture()))
@@ -176,9 +181,9 @@ class JpaAgencyRepositoryTest {
         Mockito.verify(criteriaBuilder, times(1)).or(namePredicate, codePredicate);
     }
 
-    private AgencyEntity buildEntity(String subtype, String agencyCode) {
+    private AgencyEntity buildEntity(String agencyCode) {
         AgencyEntity entity = new AgencyEntity();
-        entity.setId(new AgencyEntityId(subtype, agencyCode));
+        entity.setId(new AgencyEntityId("SUB", agencyCode));
         entity.setName("Agency Name");
         entity.setStatus("A");
         entity.setCreatedAt(OffsetDateTime.now());
@@ -188,23 +193,24 @@ class JpaAgencyRepositoryTest {
     }
 
     private static class NoOpTransactionManager extends AbstractPlatformTransactionManager {
+        @NotNull
         @Override
         protected Object doGetTransaction() {
             return new Object();
         }
 
         @Override
-        protected void doBegin(Object transaction, TransactionDefinition definition) {
+        protected void doBegin(@NotNull Object transaction, @NotNull TransactionDefinition definition) {
             // no-op
         }
 
         @Override
-        protected void doCommit(DefaultTransactionStatus status) {
+        protected void doCommit(@NotNull DefaultTransactionStatus status) {
             // no-op
         }
 
         @Override
-        protected void doRollback(DefaultTransactionStatus status) {
+        protected void doRollback(@NotNull DefaultTransactionStatus status) {
             // no-op
         }
     }

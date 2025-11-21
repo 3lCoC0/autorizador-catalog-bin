@@ -11,7 +11,6 @@ import org.springframework.mock.http.server.reactive.MockServerHttpResponse;
 import org.springframework.mock.web.server.MockServerWebExchange;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.server.ServerWebInputException;
-import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import java.lang.reflect.Method;
@@ -168,10 +167,18 @@ class GlobalErrorHandlerTest {
         assertThat(safeMessage.invoke(null, "hello", "fallback")).isEqualTo("hello");
         assertThat(safeMessage.invoke(null, "  ", "fallback")).isEqualTo("fallback");
 
-        Method truncate = GlobalErrorHandler.class.getDeclaredMethod("truncate", String.class, int.class);
+        Method truncate = GlobalErrorHandler.class.getDeclaredMethod("truncate", String.class);
         truncate.setAccessible(true);
-        assertThat(truncate.invoke(null, "abc", 5)).isEqualTo("abc");
-        assertThat(truncate.invoke(null, "abcdef", 3)).isEqualTo("abc...");
+
+        assertThat(truncate.invoke(null, "abc")).isEqualTo("abc");
+
+        String longStr = "abcdef";
+        assertThat(truncate.invoke(null, longStr)).isEqualTo("abcdef");
+
+        String longStr2 = "x".repeat(600);
+        String result = (String) truncate.invoke(null, longStr2);
+        assertThat(result).hasSize(503);
+        assertThat(result).endsWith("...");
 
         Method mostSpecific = GlobalErrorHandler.class.getDeclaredMethod("mostSpecific", Throwable.class);
         mostSpecific.setAccessible(true);

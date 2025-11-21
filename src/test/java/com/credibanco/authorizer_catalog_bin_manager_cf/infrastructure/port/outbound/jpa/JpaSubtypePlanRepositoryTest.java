@@ -1,33 +1,30 @@
 package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.outbound.jpa;
 
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.outbound.jpa.entity.SubtypeCommercePlanEntity;
-import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.outbound.jpa.mapper.SubtypePlanJpaMapper;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.outbound.jpa.repository.SubtypeCommercePlanJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
-import org.springframework.transaction.support.DefaultTransactionStatus;
+import org.springframework.transaction.support.SimpleTransactionStatus;
 import reactor.test.StepVerifier;
 
 import java.time.OffsetDateTime;
 import java.util.Optional;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 class JpaSubtypePlanRepositoryTest {
 
     private SubtypeCommercePlanJpaRepository springRepository;
-    private PlatformTransactionManager tm;
     private JpaSubtypePlanRepository repo;
 
     @BeforeEach
     void setup() {
         springRepository = mock(SubtypeCommercePlanJpaRepository.class);
-        tm = mock(PlatformTransactionManager.class);
+        PlatformTransactionManager tm = mock(PlatformTransactionManager.class);
         when(tm.getTransaction(any(TransactionDefinition.class)))
-                .thenReturn(new DefaultTransactionStatus(null, false, false, false, false, null));
+                .thenReturn(new SimpleTransactionStatus());
         repo = new JpaSubtypePlanRepository(springRepository, tm);
     }
 

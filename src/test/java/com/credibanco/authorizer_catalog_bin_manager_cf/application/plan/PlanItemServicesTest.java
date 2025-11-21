@@ -17,6 +17,7 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Flux;
@@ -28,7 +29,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class PlanItemServicesTest {
@@ -46,17 +46,30 @@ class PlanItemServicesTest {
         subtypePlanRepo = mock(SubtypePlanRepository.class);
         subtypeReadOnlyRepo = mock(SubtypeReadOnlyRepository.class);
         tx = mock(TransactionalOperator.class);
+
         lenient().doReturn(Mono.empty()).when(planRepo).findByCode(anyString());
         lenient().when(planRepo.findAll(any(), any(), anyInt(), anyInt())).thenReturn(Flux.empty());
+
         PlanItem defaultItem = PlanItem.rehydrate(0L, 0L, "", OffsetDateTime.now(), OffsetDateTime.now(), null, "A");
-        lenient().when(itemRepo.insertMcc(anyLong(), anyString(), anyString())).thenReturn(Mono.just(defaultItem));
-        lenient().when(itemRepo.insertMerchant(anyLong(), anyString(), anyString())).thenReturn(Mono.just(defaultItem));
-        lenient().when(itemRepo.findByValue(anyLong(), anyString())).thenReturn(Mono.empty());
-        lenient().when(itemRepo.existsActiveByPlanId(anyLong())).thenReturn(Mono.just(true));
-        lenient().when(itemRepo.changeStatus(anyLong(), anyString(), anyString(), anyString())).thenReturn(Mono.empty());
-        lenient().when(itemRepo.listItems(anyLong(), anyString(), anyInt(), anyInt())).thenReturn(Flux.empty());
-        lenient().when(tx.transactional(any(Mono.class))).thenAnswer(inv -> inv.getArgument(0));
-        lenient().when(tx.transactional(any(Flux.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        lenient().when(itemRepo.insertMcc(anyLong(), anyString(), anyString()))
+                .thenReturn(Mono.just(defaultItem));
+        lenient().when(itemRepo.insertMerchant(anyLong(), anyString(), anyString()))
+                .thenReturn(Mono.just(defaultItem));
+        lenient().when(itemRepo.findByValue(anyLong(), anyString()))
+                .thenReturn(Mono.empty());
+        lenient().when(itemRepo.existsActiveByPlanId(anyLong()))
+                .thenReturn(Mono.just(true));
+        lenient().when(itemRepo.changeStatus(anyLong(), anyString(), anyString(), anyString()))
+                .thenReturn(Mono.empty());
+        lenient().when(itemRepo.listItems(anyLong(), anyString(), anyInt(), anyInt()))
+                .thenReturn(Flux.empty());
+
+        lenient().when(tx.transactional(ArgumentMatchers.<Mono<?>>any()))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        lenient().when(tx.transactional(ArgumentMatchers.<Flux<?>>any()))
+                .thenAnswer(inv -> inv.getArgument(0));
     }
 
     @Test

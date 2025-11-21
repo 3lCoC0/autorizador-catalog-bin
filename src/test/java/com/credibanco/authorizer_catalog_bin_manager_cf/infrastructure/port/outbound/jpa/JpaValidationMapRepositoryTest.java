@@ -10,22 +10,22 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.outb
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.outbound.jpa.repository.ValidationMapJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
-import org.springframework.transaction.support.DefaultTransactionStatus;
+
 
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
+import org.springframework.transaction.support.SimpleTransactionStatus;
 import reactor.test.StepVerifier;
-
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 class JpaValidationMapRepositoryTest {
@@ -33,7 +33,6 @@ class JpaValidationMapRepositoryTest {
     private ValidationMapJpaRepository springRepository;
     private SubtypeJpaRepository subtypeRepository;
     private ValidationJpaRepository validationRepository;
-    private PlatformTransactionManager tm;
     private JpaValidationMapRepository repo;
 
     @BeforeEach
@@ -41,9 +40,9 @@ class JpaValidationMapRepositoryTest {
         springRepository = mock(ValidationMapJpaRepository.class);
         subtypeRepository = mock(SubtypeJpaRepository.class);
         validationRepository = mock(ValidationJpaRepository.class);
-        tm = mock(PlatformTransactionManager.class);
+        PlatformTransactionManager tm = mock(PlatformTransactionManager.class);
         when(tm.getTransaction(any(TransactionDefinition.class)))
-                .thenReturn(new DefaultTransactionStatus(null, false, false, false, false, null));
+                .thenReturn(new SimpleTransactionStatus());
         repo = new JpaValidationMapRepository(springRepository, subtypeRepository, validationRepository, tm);
     }
 
@@ -154,12 +153,22 @@ class JpaValidationMapRepositoryTest {
     @Test
     void findAllUsesSpecificationAndPaging() {
         ValidationMap map = ValidationMap.createNew("ST", "123456", 1L, null, null, null, "actor");
-        when(springRepository.findAll(any(Specification.class), eq(PageRequest.of(0, 10,
-                Sort.by(Sort.Order.asc("subtypeCode"), Sort.Order.asc("bin"), Sort.Order.asc("validationId"))))))
-                .thenReturn(new PageImpl<>(List.of(ValidationMapJpaMapper.toEntity(map))));
+
+        when(springRepository.findAll(
+                ArgumentMatchers.<Specification<ValidationMapEntity>>any(),
+                eq(PageRequest.of(
+                        0,
+                        10,
+                        Sort.by(
+                                Sort.Order.asc("subtypeCode"),
+                                Sort.Order.asc("bin"),
+                                Sort.Order.asc("validationId")
+                        )
+                ))
+        )).thenReturn(new PageImpl<>(List.of(ValidationMapJpaMapper.toEntity(map))));
 
         StepVerifier.create(repo.findAll("ST", "123456", "A", 0, 10).collectList())
-                .expectNextMatches(list -> list.size() == 1 && list.get(0).validationId().equals(1L))
+                .expectNextMatches(list -> list.size() == 1 && list.getFirst().validationId().equals(1L))
                 .verifyComplete();
     }
 
@@ -170,7 +179,7 @@ class JpaValidationMapRepositoryTest {
                 .thenReturn(List.of(ValidationMapJpaMapper.toEntity(map)));
 
         StepVerifier.create(repo.findResolved("ST", "123456", "A", 0, 5).collectList())
-                .expectNextMatches(list -> list.size() == 1 && list.get(0).validationId().equals(1L))
+                .expectNextMatches(list -> list.size() == 1 && list.getFirst().validationId().equals(1L))
                 .verifyComplete();
     }
 }

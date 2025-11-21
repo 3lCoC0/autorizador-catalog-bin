@@ -8,8 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.reactive.TransactionalOperator;
 
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 
 class AgencyUseCaseConfigTest {
@@ -30,7 +29,7 @@ class AgencyUseCaseConfigTest {
     @Test
     void createAgencyUseCaseCreatesServiceWithDependencies() {
         CreateAgencyUseCase useCase = config.createAgencyUseCase(agencyRepository, subtypeRepository, transactionalOperator);
-        assertTrue(useCase instanceof CreateAgencyService);
+        assertInstanceOf(CreateAgencyService.class, useCase);
         CreateAgencyService service = (CreateAgencyService) useCase;
         assertSame(agencyRepository, service.repo());
         assertSame(subtypeRepository, service.subtypeRepo());
@@ -40,7 +39,7 @@ class AgencyUseCaseConfigTest {
     @Test
     void updateAgencyUseCaseCreatesServiceWithDependencies() {
         UpdateAgencyUseCase useCase = config.updateAgencyUseCase(agencyRepository, subtypeRepository, transactionalOperator);
-        assertTrue(useCase instanceof UpdateAgencyService);
+        assertInstanceOf(UpdateAgencyService.class, useCase);
         UpdateAgencyService service = (UpdateAgencyService) useCase;
         assertSame(agencyRepository, service.repo());
         assertSame(subtypeRepository, service.subtypeRepo());
@@ -50,7 +49,7 @@ class AgencyUseCaseConfigTest {
     @Test
     void changeAgencyStatusUseCaseCreatesServiceWithDependencies() {
         ChangeAgencyStatusUseCase useCase = config.changeAgencyStatusUseCase(agencyRepository, subtypeRepository, transactionalOperator);
-        assertTrue(useCase instanceof ChangeAgencyStatusService);
+        assertInstanceOf(ChangeAgencyStatusService.class, useCase);
         ChangeAgencyStatusService service = (ChangeAgencyStatusService) useCase;
         assertSame(agencyRepository, service.repo());
         assertSame(subtypeRepository, service.subtypeRepo());
@@ -60,7 +59,7 @@ class AgencyUseCaseConfigTest {
     @Test
     void getAgencyUseCaseCreatesServiceWithDependencies() {
         GetAgencyUseCase useCase = config.getAgencyUseCase(agencyRepository, subtypeRepository);
-        assertTrue(useCase instanceof GetAgencyService);
+        assertInstanceOf(GetAgencyService.class, useCase);
         GetAgencyService service = (GetAgencyService) useCase;
         assertSame(agencyRepository, service.repo());
         assertSame(subtypeRepository, service.subtypeRepo());
@@ -69,7 +68,7 @@ class AgencyUseCaseConfigTest {
     @Test
     void listAgenciesUseCaseCreatesServiceWithDependencies() {
         ListAgenciesUseCase useCase = config.listAgenciesUseCase(agencyRepository, subtypeRepository);
-        assertTrue(useCase instanceof ListAgenciesService);
+        assertInstanceOf(ListAgenciesService.class, useCase);
         ListAgenciesService service = (ListAgenciesService) useCase;
         assertSame(agencyRepository, service.repo());
         assertSame(subtypeRepository, service.subtypeRepo());

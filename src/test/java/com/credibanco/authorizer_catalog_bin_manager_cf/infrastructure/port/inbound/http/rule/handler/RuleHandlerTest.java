@@ -8,6 +8,7 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.config.se
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.rule.dto.*;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.rule.router.RuleRouter;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.validation.ValidationUtil;
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -25,7 +26,6 @@ import reactor.core.publisher.Mono;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentCaptor.forClass;
-import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class RuleHandlerTest {
@@ -37,7 +37,6 @@ class RuleHandlerTest {
     private ListValidationsUseCase listUC;
     private MapRuleUseCase mapRuleUC;
     private ListRulesForSubtypeUseCase listRulesUC;
-    private ValidationUtil validationUtil;
     private ActorProvider actorProvider;
     private WebTestClient client;
     private RuleHandler handler;
@@ -51,23 +50,33 @@ class RuleHandlerTest {
         listUC = mock(ListValidationsUseCase.class);
         mapRuleUC = mock(MapRuleUseCase.class);
         listRulesUC = mock(ListRulesForSubtypeUseCase.class);
-        validationUtil = mock(ValidationUtil.class);
+        ValidationUtil validationUtil = mock(ValidationUtil.class);
         actorProvider = mock(ActorProvider.class);
 
-        handler = new RuleHandler(createUC, updateUC, changeStatusUC, getUC, listUC, mapRuleUC, listRulesUC,
-                validationUtil, actorProvider);
+        handler = new RuleHandler(
+                createUC, updateUC, changeStatusUC, getUC, listUC,
+                mapRuleUC, listRulesUC, validationUtil, actorProvider
+        );
         RuleRouter router = new RuleRouter(handler);
+
         try {
             var method = RuleRouter.class.getDeclaredMethod("routes");
             method.setAccessible(true);
-            client = WebTestClient.bindToRouterFunction((RouterFunction<ServerResponse>) method.invoke(router))
+
+            @SuppressWarnings("unchecked")
+            RouterFunction<ServerResponse> routes =
+                    (RouterFunction<ServerResponse>) method.invoke(router);
+
+            client = WebTestClient.bindToRouterFunction(routes)
                     .build();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
 
-        when(validationUtil.validate(any(), any())).thenAnswer(inv -> Mono.just(inv.getArgument(0)));
-        when(actorProvider.currentUserId()).thenReturn(Mono.just("secUser"));
+        when(validationUtil.validate(any(), any()))
+                .thenAnswer(inv -> Mono.just(inv.getArgument(0)));
+        when(actorProvider.currentUserId())
+                .thenReturn(Mono.just("secUser"));
     }
 
     @Test
@@ -183,11 +192,13 @@ class RuleHandlerTest {
         ServerRequest request = ServerRequest.create(exchange, HandlerStrategies.withDefaults().messageReaders());
 
         Context responseContext = new Context() {
+            @NotNull
             @Override
             public java.util.List<org.springframework.http.codec.HttpMessageWriter<?>> messageWriters() {
                 return HandlerStrategies.withDefaults().messageWriters();
             }
 
+            @NotNull
             @Override
             public java.util.List<org.springframework.web.reactive.result.view.ViewResolver> viewResolvers() {
                 return HandlerStrategies.withDefaults().viewResolvers();
@@ -263,11 +274,13 @@ class RuleHandlerTest {
         ServerRequest request = ServerRequest.create(exchange, HandlerStrategies.withDefaults().messageReaders());
 
         Context contextForGet = new Context() {
+            @NotNull
             @Override
             public java.util.List<org.springframework.http.codec.HttpMessageWriter<?>> messageWriters() {
                 return HandlerStrategies.withDefaults().messageWriters();
             }
 
+            @NotNull
             @Override
             public java.util.List<org.springframework.web.reactive.result.view.ViewResolver> viewResolvers() {
                 return HandlerStrategies.withDefaults().viewResolvers();
@@ -306,11 +319,13 @@ class RuleHandlerTest {
         ServerRequest request = ServerRequest.create(exchange, HandlerStrategies.withDefaults().messageReaders());
 
         Context contextForList = new Context() {
+            @NotNull
             @Override
             public java.util.List<org.springframework.http.codec.HttpMessageWriter<?>> messageWriters() {
                 return HandlerStrategies.withDefaults().messageWriters();
             }
 
+            @NotNull
             @Override
             public java.util.List<org.springframework.web.reactive.result.view.ViewResolver> viewResolvers() {
                 return HandlerStrategies.withDefaults().viewResolvers();

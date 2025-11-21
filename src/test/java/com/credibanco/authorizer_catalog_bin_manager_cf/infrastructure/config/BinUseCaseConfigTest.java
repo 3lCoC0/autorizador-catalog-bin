@@ -9,8 +9,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.reactive.TransactionalOperator;
 
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 
 class BinUseCaseConfigTest {
@@ -31,23 +30,23 @@ class BinUseCaseConfigTest {
     @Test
     void getBinUseCaseCreatesServiceWithRepository() {
         GetBinUseCase useCase = config.getBinUseCase(binRepository);
-        assertTrue(useCase instanceof GetBinService);
+        assertInstanceOf(GetBinService.class, useCase);
         GetBinService service = (GetBinService) useCase;
-        assertSame(binRepository, extractField(service, "repo"));
+        assertSame(binRepository, extractField(service));
     }
 
     @Test
     void listBinsUseCaseCreatesServiceWithRepository() {
         ListBinsUseCase useCase = config.listBinsUseCase(binRepository);
-        assertTrue(useCase instanceof ListBinsService);
+        assertInstanceOf(ListBinsService.class, useCase);
         ListBinsService service = (ListBinsService) useCase;
-        assertSame(binRepository, extractField(service, "repo"));
+        assertSame(binRepository, extractField(service));
     }
 
     @Test
     void createBinUseCaseCreatesServiceWithDependencies() {
         CreateBinUseCase useCase = config.createBinUseCase(binRepository, transactionalOperator);
-        assertTrue(useCase instanceof CreateBinService);
+        assertInstanceOf(CreateBinService.class, useCase);
         CreateBinService service = (CreateBinService) useCase;
         assertSame(binRepository, service.repo());
         assertSame(transactionalOperator, service.tx());
@@ -56,7 +55,7 @@ class BinUseCaseConfigTest {
     @Test
     void changeBinStatusUseCaseCreatesServiceWithDependencies() {
         ChangeBinStatusUseCase useCase = config.changeBinStatusUseCase(binRepository, transactionalOperator);
-        assertTrue(useCase instanceof ChangeBinStatusService);
+        assertInstanceOf(ChangeBinStatusService.class, useCase);
         ChangeBinStatusService service = (ChangeBinStatusService) useCase;
         assertSame(binRepository, service.repo());
         assertSame(transactionalOperator, service.tx());
@@ -65,20 +64,20 @@ class BinUseCaseConfigTest {
     @Test
     void updateBinUseCaseCreatesServiceWithDependencies() {
         UpdateBinUseCase useCase = config.updateBinUseCase(binRepository, subtypeRepository, transactionalOperator);
-        assertTrue(useCase instanceof UpdateBinService);
+        assertInstanceOf(UpdateBinService.class, useCase);
         UpdateBinService service = (UpdateBinService) useCase;
         assertSame(binRepository, service.repo());
         assertSame(subtypeRepository, service.subtypeRepo());
         assertSame(transactionalOperator, service.tx());
     }
 
-    private Object extractField(Object target, String fieldName) {
+    private Object extractField(Object target) {
         try {
-            Field field = target.getClass().getDeclaredField(fieldName);
+            Field field = target.getClass().getDeclaredField("repo");
             field.setAccessible(true);
             return field.get(target);
         } catch (ReflectiveOperationException e) {
-            throw new AssertionError("Failed to read field " + fieldName, e);
+            throw new AssertionError("Failed to read field " + "repo", e);
         }
     }
 }

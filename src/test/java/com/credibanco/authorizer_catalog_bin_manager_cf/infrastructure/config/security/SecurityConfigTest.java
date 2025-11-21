@@ -101,8 +101,12 @@ class SecurityConfigTest {
     @Test
     void jwtDecoderEnforcesIssuerAndAudience() {
         var decoder = securityConfig.jwtDecoder();
-        OAuth2TokenValidator<Jwt> validator = (OAuth2TokenValidator<Jwt>) ReflectionTestUtils
-                .getField(decoder, "jwtValidator");
+
+        Object field = ReflectionTestUtils.getField(decoder, "jwtValidator");
+        assertNotNull(field);
+
+        @SuppressWarnings("unchecked")
+        OAuth2TokenValidator<Jwt> validator = (OAuth2TokenValidator<Jwt>) field;
 
         Jwt valid = Jwt.withTokenValue("token")
                 .header("alg", "none")

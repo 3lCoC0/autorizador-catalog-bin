@@ -7,6 +7,7 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.outb
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.outbound.jpa.repository.CommercePlanJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -14,7 +15,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
-import org.springframework.transaction.support.DefaultTransactionStatus;
+import org.springframework.transaction.support.SimpleTransactionStatus;
 import reactor.test.StepVerifier;
 
 import java.time.OffsetDateTime;
@@ -23,22 +24,22 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+
 import static org.mockito.Mockito.*;
 
 class JpaCommercePlanRepositoryTest {
 
     private CommercePlanJpaRepository springRepo;
-    private PlatformTransactionManager tm;
     private JpaCommercePlanRepository repo;
 
     @BeforeEach
     void setup() {
         springRepo = mock(CommercePlanJpaRepository.class);
-        tm = mock(PlatformTransactionManager.class);
+        PlatformTransactionManager tm = mock(PlatformTransactionManager.class);
+
         when(tm.getTransaction(any(TransactionDefinition.class)))
-                .thenReturn(new DefaultTransactionStatus(null, false, false, false, false, null));
+                .thenReturn(new SimpleTransactionStatus());
+
         repo = new JpaCommercePlanRepository(springRepo, tm);
     }
 
@@ -129,9 +130,14 @@ class JpaCommercePlanRepositoryTest {
 
     @Test
     void findAllBuildsSpecification() {
-        CommercePlan plan = CommercePlan.createNew("CODE", "NAME", CommerceValidationMode.MERCHANT_ID, "desc", "creator");
-        when(springRepo.findAll(any(Specification.class), eq(PageRequest.of(0, 5, Sort.by(Sort.Order.asc("planCode"))))))
-                .thenReturn(new PageImpl<>(List.of(CommercePlanJpaMapper.toEntity(plan))));
+        CommercePlan plan = CommercePlan.createNew(
+                "CODE", "NAME", CommerceValidationMode.MERCHANT_ID, "desc", "creator"
+        );
+
+        when(springRepo.findAll(
+                ArgumentMatchers.<Specification<CommercePlanEntity>>any(),
+                eq(PageRequest.of(0, 5, Sort.by(Sort.Order.asc("planCode"))))
+        )).thenReturn(new PageImpl<>(List.of(CommercePlanJpaMapper.toEntity(plan))));
 
         StepVerifier.create(repo.findAll("A", "CODE", 0, 5))
                 .expectNextMatches(found -> found.code().equals("CODE"))

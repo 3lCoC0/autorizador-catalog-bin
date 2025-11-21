@@ -8,15 +8,15 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mockito;
+
+import org.mockito.ArgumentMatchers;
+
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class BinUseCasesTest {
@@ -30,8 +30,12 @@ class BinUseCasesTest {
         repo = mock(BinRepository.class);
         subtypeRepo = mock(SubtypeReadOnlyRepository.class);
         tx = mock(TransactionalOperator.class);
-        lenient().when(tx.transactional(any(Mono.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        lenient().when(tx.transactional(any(Flux.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        lenient().when(tx.transactional(ArgumentMatchers.<Mono<?>>any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        lenient().when(tx.transactional(ArgumentMatchers.<Flux<?>>any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @Test

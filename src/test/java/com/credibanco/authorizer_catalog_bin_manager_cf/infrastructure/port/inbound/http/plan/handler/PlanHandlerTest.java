@@ -21,8 +21,6 @@ import reactor.core.publisher.Mono;
 
 import java.time.OffsetDateTime;
 import java.util.List;
-
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 class PlanHandlerTest {
@@ -36,8 +34,6 @@ class PlanHandlerTest {
     private ListPlanItemsUseCase listItemsUC;
     private AssignPlanToSubtypeUseCase assignUC;
     private ChangePlanItemStatusUseCase changeItemStatusUC;
-    private ValidationUtil validation;
-    private ActorProvider actorProvider;
     private WebTestClient client;
 
     @BeforeEach
@@ -51,17 +47,27 @@ class PlanHandlerTest {
         listItemsUC = mock(ListPlanItemsUseCase.class);
         assignUC = mock(AssignPlanToSubtypeUseCase.class);
         changeItemStatusUC = mock(ChangePlanItemStatusUseCase.class);
-        validation = mock(ValidationUtil.class);
-        actorProvider = mock(ActorProvider.class);
+        ValidationUtil validation = mock(ValidationUtil.class);
+        ActorProvider actorProvider = mock(ActorProvider.class);
 
-        PlanHandler handler = new PlanHandler(createUC, getUC, listUC, updateUC, changeStatusUC,
-                addItemUC, listItemsUC, assignUC, validation, changeItemStatusUC, actorProvider);
+        PlanHandler handler = new PlanHandler(
+                createUC, getUC, listUC, updateUC, changeStatusUC,
+                addItemUC, listItemsUC, assignUC, validation, changeItemStatusUC, actorProvider
+        );
         PlanRouter router = new PlanRouter(handler);
+
         try {
             var method = PlanRouter.class.getDeclaredMethod("routes");
             method.setAccessible(true);
-            client = WebTestClient.bindToRouterFunction((RouterFunction<ServerResponse>) method.invoke(router))
-                    .configureClient().baseUrl("/").build();
+
+            @SuppressWarnings("unchecked")
+            RouterFunction<ServerResponse> routes =
+                    (RouterFunction<ServerResponse>) method.invoke(router);
+
+            client = WebTestClient.bindToRouterFunction(routes)
+                    .configureClient()
+                    .baseUrl("/")
+                    .build();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

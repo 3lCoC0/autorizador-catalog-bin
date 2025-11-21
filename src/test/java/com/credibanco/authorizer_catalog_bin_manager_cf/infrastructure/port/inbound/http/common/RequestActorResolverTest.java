@@ -1,6 +1,7 @@
 package com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.inbound.http.common;
 
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.config.security.ActorProvider;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
@@ -32,6 +33,7 @@ class RequestActorResolverTest {
         RequestActorResolver.ActorResolution resolution = resolver.resolve(request, "  bodyUser  ", "op")
                 .block();
 
+        Assertions.assertNotNull(resolution);
         assertThat(resolution.actor()).isEqualTo("bodyUser");
         assertThat(resolution.source()).isEqualTo(RequestActorResolver.ActorSource.REQUEST_BODY);
         assertThat(resolution.printableActor()).isEqualTo("bodyUser");
@@ -47,6 +49,7 @@ class RequestActorResolverTest {
         RequestActorResolver.ActorResolution resolution = resolver.resolve(request, "op")
                 .block();
 
+        Assertions.assertNotNull(resolution);
         assertThat(resolution.actor()).isEqualTo("headerUser");
         assertThat(resolution.source()).isEqualTo(RequestActorResolver.ActorSource.HEADER);
     }
@@ -60,6 +63,7 @@ class RequestActorResolverTest {
         RequestActorResolver.ActorResolution resolution = resolver.resolve(request, "op")
                 .block();
 
+        Assertions.assertNotNull(resolution);
         assertThat(resolution.actor()).isEqualTo("secUser");
         assertThat(resolution.source()).isEqualTo(RequestActorResolver.ActorSource.SECURITY_CONTEXT);
     }
@@ -70,9 +74,10 @@ class RequestActorResolverTest {
         MockServerWebExchange exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/test").build());
         ServerRequest request = ServerRequest.create(exchange, HandlerStrategies.withDefaults().messageReaders());
 
-        RequestActorResolver.ActorResolution resolution = resolver.resolve(request, (String) null, "op")
+        RequestActorResolver.ActorResolution resolution = resolver.resolve(request, null, "op")
                 .block();
 
+        Assertions.assertNotNull(resolution);
         assertThat(resolution.actorOrNull()).isNull();
         assertThat(resolution.printableActor()).isEqualTo("<none>");
         assertThat(resolution.source()).isEqualTo(RequestActorResolver.ActorSource.NONE);

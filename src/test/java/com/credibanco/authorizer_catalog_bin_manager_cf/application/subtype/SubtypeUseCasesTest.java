@@ -10,6 +10,7 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -18,7 +19,6 @@ import reactor.test.StepVerifier;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class SubtypeUseCasesTest {
@@ -36,8 +36,12 @@ class SubtypeUseCasesTest {
         idTypeRepo = mock(IdTypeReadOnlyRepository.class);
         agencyRepo = mock(AgencyReadOnlyRepository.class);
         tx = mock(TransactionalOperator.class);
-        lenient().when(tx.transactional(any(Mono.class))).thenAnswer(inv -> inv.getArgument(0));
-        lenient().when(tx.transactional(any(Flux.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        lenient().when(tx.transactional(ArgumentMatchers.<Mono<?>>any()))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        lenient().when(tx.transactional(ArgumentMatchers.<Flux<?>>any()))
+                .thenAnswer(inv -> inv.getArgument(0));
     }
 
     @Test

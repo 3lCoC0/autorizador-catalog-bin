@@ -8,14 +8,13 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class AgencyUseCasesTest {
@@ -29,7 +28,9 @@ class AgencyUseCasesTest {
         repo = mock(AgencyRepository.class);
         subtypeRepo = mock(SubtypeReadOnlyRepository.class);
         tx = mock(TransactionalOperator.class);
-        when(tx.transactional(any(Mono.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        when(tx.transactional(ArgumentMatchers.<Mono<?>>any()))
+                .thenAnswer(inv -> inv.getArgument(0));
     }
 
     @Test
@@ -44,7 +45,7 @@ class AgencyUseCasesTest {
 
         StepVerifier.create(service.execute(draft))
                 .expectErrorSatisfies(err -> {
-                    assertTrue(err instanceof AppException);
+                    assertInstanceOf(AppException.class, err);
                     assertEquals(AppError.AGENCY_ALREADY_EXISTS, ((AppException) err).getError());
                 })
                 .verify();
@@ -68,7 +69,7 @@ class AgencyUseCasesTest {
 
         StepVerifier.create(service.execute(draft))
                 .expectErrorSatisfies(err -> {
-                    assertTrue(err instanceof AppException);
+                    assertInstanceOf(AppException.class, err);
                     assertEquals(AppError.SUBTYPE_NOT_FOUND, ((AppException) err).getError());
                 })
                 .verify();
@@ -115,7 +116,7 @@ class AgencyUseCasesTest {
 
         StepVerifier.create(service.execute(update))
                 .expectErrorSatisfies(err -> {
-                    assertTrue(err instanceof AppException);
+                    assertInstanceOf(AppException.class, err);
                     assertEquals(AppError.AGENCY_NOT_FOUND, ((AppException) err).getError());
                 })
                 .verify();
@@ -134,7 +135,7 @@ class AgencyUseCasesTest {
 
         StepVerifier.create(service.execute("SUB", "01", "I", "actor"))
                 .expectErrorSatisfies(err -> {
-                    assertTrue(err instanceof AppException);
+                    assertInstanceOf(AppException.class, err);
                     assertEquals(AppError.AGENCY_CONFLICT_RULE, ((AppException) err).getError());
                 })
                 .verify();
@@ -146,7 +147,7 @@ class AgencyUseCasesTest {
 
         StepVerifier.create(service.execute("SUB", "01", "X", "actor"))
                 .expectErrorSatisfies(err -> {
-                    assertTrue(err instanceof AppException);
+                    assertInstanceOf(AppException.class, err);
                     assertEquals(AppError.AGENCY_INVALID_DATA, ((AppException) err).getError());
                 })
                 .verify();

@@ -6,38 +6,33 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.outb
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.outbound.jpa.repository.BinJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.stubbing.Answer;
+
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
-import org.springframework.transaction.TransactionStatus;
-import org.springframework.transaction.support.DefaultTransactionStatus;
+
 
 import java.util.List;
 import java.util.Optional;
 
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-import reactor.test.StepVerifier;
+import org.springframework.transaction.support.SimpleTransactionStatus;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
+import reactor.test.StepVerifier;
 import static org.mockito.Mockito.*;
 
 class JpaBinRepositoryTest {
 
     private BinJpaRepository springRepository;
-    private PlatformTransactionManager tm;
     private JpaBinRepository repo;
 
     @BeforeEach
     void setup() {
         springRepository = mock(BinJpaRepository.class);
-        tm = mock(PlatformTransactionManager.class);
+        PlatformTransactionManager tm = mock(PlatformTransactionManager.class);
         when(tm.getTransaction(any(TransactionDefinition.class)))
-                .thenReturn(new DefaultTransactionStatus(null, false, false, false, false, null));
+                .thenReturn(new SimpleTransactionStatus());
         repo = new JpaBinRepository(springRepository, tm);
     }
 

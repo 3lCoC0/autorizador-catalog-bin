@@ -4,35 +4,34 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.outb
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.outbound.jpa.repository.CommercePlanItemJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
-import org.springframework.transaction.support.DefaultTransactionStatus;
+import org.springframework.transaction.support.SimpleTransactionStatus;
 import reactor.test.StepVerifier;
 
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 class JpaCommercePlanItemRepositoryTest {
 
     private CommercePlanItemJpaRepository springRepository;
-    private PlatformTransactionManager tm;
     private JpaCommercePlanItemRepository repo;
 
     @BeforeEach
     void setup() {
         springRepository = mock(CommercePlanItemJpaRepository.class);
-        tm = mock(PlatformTransactionManager.class);
+        PlatformTransactionManager tm = mock(PlatformTransactionManager.class);
+
         when(tm.getTransaction(any(TransactionDefinition.class)))
-                .thenReturn(new DefaultTransactionStatus(null, false, false, false, false, null));
+                .thenReturn(new SimpleTransactionStatus());  // ← FIX
+
         repo = new JpaCommercePlanItemRepository(springRepository, tm);
     }
 
@@ -87,9 +86,11 @@ class JpaCommercePlanItemRepositoryTest {
         entity.setPlanId(3L);
         entity.setMcc("1111");
         entity.setStatus("A");
-        when(springRepository.findAll(any(Specification.class),
-                eq(PageRequest.of(0, 2, Sort.by(Sort.Order.asc("mcc"), Sort.Order.asc("merchantId"))))))
-                .thenReturn(new PageImpl<>(List.of(entity)));
+
+        when(springRepository.findAll(
+                ArgumentMatchers.<Specification<CommercePlanItemEntity>>any(),
+                eq(PageRequest.of(0, 2, Sort.by(Sort.Order.asc("mcc"), Sort.Order.asc("merchantId"))))
+        )).thenReturn(new PageImpl<>(List.of(entity)));
 
         StepVerifier.create(repo.listItems(3L, null, 0, 2))
                 .expectNextMatches(item -> item.value().equals("1111"))

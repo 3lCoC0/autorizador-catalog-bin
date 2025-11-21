@@ -19,7 +19,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class SubtypeHandlerTest {
@@ -29,7 +28,6 @@ class SubtypeHandlerTest {
     private UpdateSubtypeBasicsUseCase updateUC;
     private GetSubtypeUseCase getUC;
     private ChangeSubtypeStatusUseCase changeStatusUC;
-    private ValidationUtil validation;
     private ActorProvider actorProvider;
     private WebTestClient client;
 
@@ -40,22 +38,34 @@ class SubtypeHandlerTest {
         updateUC = mock(UpdateSubtypeBasicsUseCase.class);
         getUC = mock(GetSubtypeUseCase.class);
         changeStatusUC = mock(ChangeSubtypeStatusUseCase.class);
-        validation = mock(ValidationUtil.class);
+        ValidationUtil validation = mock(ValidationUtil.class);
         actorProvider = mock(ActorProvider.class);
 
-        SubtypeHandler handler = new SubtypeHandler(createUC, listUC, validation, updateUC, getUC, changeStatusUC, actorProvider);
+        SubtypeHandler handler = new SubtypeHandler(
+                createUC, listUC, validation, updateUC, getUC, changeStatusUC, actorProvider
+        );
         SubtypeRouter router = new SubtypeRouter(handler);
+
         try {
             var method = SubtypeRouter.class.getDeclaredMethod("subtypeRoutes");
             method.setAccessible(true);
-            client = WebTestClient.bindToRouterFunction((RouterFunction<ServerResponse>) method.invoke(router))
-                    .configureClient().baseUrl("/").build();
+
+            @SuppressWarnings("unchecked")
+            RouterFunction<ServerResponse> routes =
+                    (RouterFunction<ServerResponse>) method.invoke(router);
+
+            client = WebTestClient.bindToRouterFunction(routes)
+                    .configureClient()
+                    .baseUrl("/")
+                    .build();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
 
-        when(validation.validate(any(), any())).thenAnswer(inv -> Mono.just(inv.getArgument(0)));
-        when(actorProvider.currentUserId()).thenReturn(Mono.just("secUser"));
+        when(validation.validate(any(), any()))
+                .thenAnswer(inv -> Mono.just(inv.getArgument(0)));
+        when(actorProvider.currentUserId())
+                .thenReturn(Mono.just("secUser"));
     }
 
     @Test

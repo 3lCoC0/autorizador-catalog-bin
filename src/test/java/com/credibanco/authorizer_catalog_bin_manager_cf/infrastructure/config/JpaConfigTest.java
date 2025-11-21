@@ -19,19 +19,14 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import org.springframework.transaction.support.DefaultTransactionDefinition;
-import org.springframework.transaction.support.DefaultTransactionStatus;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.support.SimpleTransactionStatus;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 import reactor.test.StepVerifier;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -57,10 +52,10 @@ class JpaConfigTest {
 
         try (MockedConstruction<HikariDataSource> mocked = Mockito.mockConstruction(
                 HikariDataSource.class,
-                (mock, context) -> assertSame(hikariConfig, context.arguments().get(0)))) {
+                (mock, context) -> assertSame(hikariConfig, context.arguments().getFirst()))) {
             DataSource dataSource = config.dataSource(properties, hikariConfig);
 
-            assertSame(mocked.constructed().get(0), dataSource);
+            assertSame(mocked.constructed().getFirst(), dataSource);
         }
 
         assertEquals("jdbc:h2:mem:testdb", hikariConfig.getJdbcUrl());
@@ -79,9 +74,10 @@ class JpaConfigTest {
         LocalContainerEntityManagerFactoryBean factory = config.entityManagerFactory(dataSource, jpaProperties);
 
         assertSame(dataSource, factory.getDataSource());
-        assertTrue(factory.getJpaVendorAdapter() instanceof HibernateJpaVendorAdapter);
+        assertInstanceOf(HibernateJpaVendorAdapter.class, factory.getJpaVendorAdapter());
         HibernateJpaVendorAdapter adapter = (HibernateJpaVendorAdapter) factory.getJpaVendorAdapter();
-        assertTrue((boolean) ReflectionTestUtils.invokeMethod(adapter, "isShowSql"));
+        Object result = ReflectionTestUtils.invokeMethod(adapter, "isShowSql");
+        assertEquals(Boolean.TRUE, result);
         assertEquals(Map.of("hibernate.dialect", "org.hibernate.dialect.H2Dialect"), factory.getJpaPropertyMap());
     }
 
@@ -102,7 +98,7 @@ class JpaConfigTest {
 
         ReactiveTransactionManager transactionManager = config.reactiveTransactionManager(delegate);
 
-        assertTrue(transactionManager instanceof JpaConfig.ReactivePlatformTransactionManagerAdapter);
+        assertInstanceOf(JpaConfig.ReactivePlatformTransactionManagerAdapter.class, transactionManager);
     }
 
     @Test
@@ -117,7 +113,7 @@ class JpaConfigTest {
 
     @Test
     void reactiveTransactionAdapterDelegatesStatusOperations() {
-        TransactionStatus status = new DefaultTransactionStatus(null, false, false, false, false, null);
+        TransactionStatus status = new SimpleTransactionStatus();
         Scheduler.Worker worker = Schedulers.single().createWorker();
         JpaConfig.ReactiveTransactionAdapter adapter = new JpaConfig.ReactiveTransactionAdapter(status, worker);
 
@@ -134,7 +130,7 @@ class JpaConfigTest {
     @Test
     void reactiveTransactionManagerCommitsAndDisposesWorker() {
         PlatformTransactionManager delegate = mock(PlatformTransactionManager.class);
-        TransactionStatus status = new DefaultTransactionStatus(null, true, false, false, false, null);
+        TransactionStatus status = new SimpleTransactionStatus();
         Scheduler.Worker worker = Schedulers.single().createWorker();
         JpaConfig.ReactivePlatformTransactionManagerAdapter manager =
                 new JpaConfig.ReactivePlatformTransactionManagerAdapter(delegate);
@@ -149,7 +145,7 @@ class JpaConfigTest {
     @Test
     void reactiveTransactionManagerRollsBackAndDisposesWorker() {
         PlatformTransactionManager delegate = mock(PlatformTransactionManager.class);
-        TransactionStatus status = new DefaultTransactionStatus(null, true, false, false, false, null);
+        TransactionStatus status = new SimpleTransactionStatus();
         Scheduler.Worker worker = Schedulers.single().createWorker();
         JpaConfig.ReactivePlatformTransactionManagerAdapter manager =
                 new JpaConfig.ReactivePlatformTransactionManagerAdapter(delegate);
@@ -165,7 +161,7 @@ class JpaConfigTest {
     void getReactiveTransactionUsesDefaultDefinitionWhenNull() {
         PlatformTransactionManager delegate = mock(PlatformTransactionManager.class);
         Mockito.when(delegate.getTransaction(Mockito.any(TransactionDefinition.class)))
-                .thenReturn(new DefaultTransactionStatus(null, true, false, false, false, null));
+                .thenReturn(new SimpleTransactionStatus());
 
         JpaConfig.ReactivePlatformTransactionManagerAdapter manager =
                 new JpaConfig.ReactivePlatformTransactionManagerAdapter(delegate);
@@ -181,9 +177,11 @@ class JpaConfigTest {
     @Test
     void getReactiveTransactionUsesProvidedDefinition() {
         PlatformTransactionManager delegate = mock(PlatformTransactionManager.class);
-        TransactionDefinition customDefinition = new DefaultTransactionDefinition(TransactionDefinition.PROPAGATION_SUPPORTS);
+        TransactionDefinition customDefinition =
+                new DefaultTransactionDefinition(TransactionDefinition.PROPAGATION_SUPPORTS);
         Mockito.when(delegate.getTransaction(customDefinition))
-                .thenReturn(new DefaultTransactionStatus(null, true, false, false, false, null));
+                .thenReturn(new SimpleTransactionStatus());
+
         JpaConfig.ReactivePlatformTransactionManagerAdapter manager =
                 new JpaConfig.ReactivePlatformTransactionManagerAdapter(delegate);
 

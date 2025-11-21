@@ -10,7 +10,6 @@ import reactor.core.publisher.Flux;
 import reactor.test.StepVerifier;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ListRulesForSubtypeServiceTest {

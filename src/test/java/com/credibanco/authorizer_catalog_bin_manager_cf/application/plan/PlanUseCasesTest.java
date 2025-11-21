@@ -12,6 +12,7 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -20,9 +21,7 @@ import reactor.test.StepVerifier;
 import java.time.OffsetDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class PlanUseCasesTest {
@@ -30,12 +29,17 @@ class PlanUseCasesTest {
     private CommercePlanRepository repo;
     private TransactionalOperator tx;
 
+
     @BeforeEach
     void setUp() {
         repo = mock(CommercePlanRepository.class);
         tx = mock(TransactionalOperator.class);
-        when(tx.transactional(any(Mono.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(tx.transactional(any(Flux.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        when(tx.transactional(ArgumentMatchers.<Mono<?>>any()))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        when(tx.transactional(ArgumentMatchers.<Flux<?>>any()))
+                .thenAnswer(inv -> inv.getArgument(0));
     }
 
     @Test
@@ -46,7 +50,7 @@ class PlanUseCasesTest {
 
         StepVerifier.create(service.execute("DUP", "NAME", CommerceValidationMode.MERCHANT_ID, "desc", "creator"))
                 .expectErrorSatisfies(err -> {
-                    assertTrue(err instanceof AppException);
+                    assertInstanceOf(AppException.class, err);
                     assertEquals(AppError.PLAN_ALREADY_EXISTS, ((AppException) err).getError());
                 })
                 .verify();
@@ -55,7 +59,7 @@ class PlanUseCasesTest {
 
         StepVerifier.create(service.execute("BAD", "", CommerceValidationMode.MERCHANT_ID, "desc", "creator"))
                 .expectErrorSatisfies(err -> {
-                    assertTrue(err instanceof AppException);
+                    assertInstanceOf(AppException.class, err);
                     assertEquals(AppError.PLAN_INVALID_DATA, ((AppException) err).getError());
                 })
                 .verify();
@@ -76,7 +80,7 @@ class PlanUseCasesTest {
         when(repo.findByCode("MISSING")).thenReturn(Mono.empty());
         StepVerifier.create(service.execute("MISSING", "UPDATED", "desc", null, "editor"))
                 .expectErrorSatisfies(err -> {
-                    assertTrue(err instanceof AppException);
+                    assertInstanceOf(AppException.class, err);
                     assertEquals(AppError.PLAN_NOT_FOUND, ((AppException) err).getError());
                 })
                 .verify();
@@ -84,7 +88,7 @@ class PlanUseCasesTest {
         when(repo.findByCode("CODE")).thenReturn(Mono.just(existing));
         StepVerifier.create(service.execute("CODE", "UPDATED", "desc", "INVALID", "editor"))
                 .expectErrorSatisfies(err -> {
-                    assertTrue(err instanceof AppException);
+                    assertInstanceOf(AppException.class, err);
                     assertEquals(AppError.PLAN_INVALID_DATA, ((AppException) err).getError());
                 })
                 .verify();
@@ -109,7 +113,7 @@ class PlanUseCasesTest {
 
         StepVerifier.create(service.execute("CODE", "X", "actor"))
                 .expectErrorSatisfies(err -> {
-                    assertTrue(err instanceof AppException);
+                    assertInstanceOf(AppException.class, err);
                     assertEquals(AppError.PLAN_INVALID_DATA, ((AppException) err).getError());
                 })
                 .verify();
@@ -117,7 +121,7 @@ class PlanUseCasesTest {
         when(repo.findByCode("MISSING")).thenReturn(Mono.empty());
         StepVerifier.create(service.execute("MISSING", "I", "actor"))
                 .expectErrorSatisfies(err -> {
-                    assertTrue(err instanceof AppException);
+                    assertInstanceOf(AppException.class, err);
                     assertEquals(AppError.PLAN_NOT_FOUND, ((AppException) err).getError());
                 })
                 .verify();
@@ -136,7 +140,7 @@ class PlanUseCasesTest {
         when(repo.findByCode("MISS")).thenReturn(Mono.empty());
         StepVerifier.create(service.execute("MISS"))
                 .expectErrorSatisfies(err -> {
-                    assertTrue(err instanceof AppException);
+                    assertInstanceOf(AppException.class, err);
                     assertEquals(AppError.PLAN_NOT_FOUND, ((AppException) err).getError());
                 })
                 .verify();

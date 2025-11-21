@@ -9,6 +9,7 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule.ValidationDa
 import com.credibanco.authorizer_catalog_bin_manager_cf.domain.rule.ValidationMap;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppError;
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppException;
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -22,9 +23,7 @@ import reactor.test.StepVerifier;
 
 import java.time.OffsetDateTime;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.*;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class RuleUseCasesTest {
@@ -43,18 +42,21 @@ class RuleUseCasesTest {
     }
 
     private static class NoOpReactiveTransactionManager implements ReactiveTransactionManager {
+        @NotNull
         @Override
         public Mono<org.springframework.transaction.ReactiveTransaction> getReactiveTransaction(TransactionDefinition definition) {
             return Mono.just(mock(org.springframework.transaction.ReactiveTransaction.class));
         }
 
+        @NotNull
         @Override
-        public Mono<Void> commit(org.springframework.transaction.ReactiveTransaction transaction) {
+        public Mono<Void> commit(@NotNull org.springframework.transaction.ReactiveTransaction transaction) {
             return Mono.empty();
         }
 
+        @NotNull
         @Override
-        public Mono<Void> rollback(org.springframework.transaction.ReactiveTransaction transaction) {
+        public Mono<Void> rollback(@NotNull org.springframework.transaction.ReactiveTransaction transaction) {
             return Mono.empty();
         }
     }
@@ -254,7 +256,7 @@ class RuleUseCasesTest {
 
             ArgumentCaptor<String> statusCaptor = ArgumentCaptor.forClass(String.class);
             verify(mapRepo).findResolved(eq("ST"), eq("123456"), statusCaptor.capture(), eq(1), eq(10));
-            assertTrue(statusCaptor.getValue() == null);
+            assertNull(statusCaptor.getValue());
         }
     }
 

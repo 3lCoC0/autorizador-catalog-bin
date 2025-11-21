@@ -21,7 +21,6 @@ import reactor.core.publisher.Mono;
 import java.time.OffsetDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class AgencyHandlerTest {
@@ -31,8 +30,6 @@ class AgencyHandlerTest {
     private ChangeAgencyStatusUseCase changeStatusUC;
     private GetAgencyUseCase getUC;
     private ListAgenciesUseCase listUC;
-    private ValidationUtil validation;
-    private ActorProvider actorProvider;
     private WebTestClient client;
 
     @BeforeEach
@@ -42,16 +39,23 @@ class AgencyHandlerTest {
         changeStatusUC = mock(ChangeAgencyStatusUseCase.class);
         getUC = mock(GetAgencyUseCase.class);
         listUC = mock(ListAgenciesUseCase.class);
-        validation = mock(ValidationUtil.class);
-        actorProvider = mock(ActorProvider.class);
+        ValidationUtil validation = mock(ValidationUtil.class);
+        ActorProvider actorProvider = mock(ActorProvider.class);
 
         AgencyHandler handler = new AgencyHandler(createUC, updateUC, changeStatusUC, getUC, listUC, validation, actorProvider);
         AgencyRouter router = new AgencyRouter(handler);
         try {
             var method = AgencyRouter.class.getDeclaredMethod("routes");
             method.setAccessible(true);
-            client = WebTestClient.bindToRouterFunction((RouterFunction<ServerResponse>) method.invoke(router))
-                    .configureClient().baseUrl("/").build();
+
+            @SuppressWarnings("unchecked")
+            RouterFunction<ServerResponse> routes =
+                    (RouterFunction<ServerResponse>) method.invoke(router);
+
+            client = WebTestClient.bindToRouterFunction(routes)
+                    .configureClient()
+                    .baseUrl("/")
+                    .build();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

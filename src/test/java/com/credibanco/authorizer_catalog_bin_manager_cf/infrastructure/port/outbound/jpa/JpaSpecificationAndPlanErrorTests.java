@@ -12,13 +12,16 @@ import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.AbstractPlatformTransactionManager;
 import org.springframework.transaction.support.DefaultTransactionStatus;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,15 +38,7 @@ class JpaSpecificationAndPlanErrorTests {
         ValidationMapJpaRepository repository = mock(ValidationMapJpaRepository.class);
         SubtypeJpaRepository subtypeRepository = mock(SubtypeJpaRepository.class);
         ValidationJpaRepository validationRepository = mock(ValidationJpaRepository.class);
-        JpaValidationMapRepository jpaRepository = new JpaValidationMapRepository(
-                repository, subtypeRepository, validationRepository, new NoOpTransactionManager());
-
-        Method buildSpecification = JpaValidationMapRepository.class
-                .getDeclaredMethod("buildSpecification", String.class, String.class, String.class);
-        buildSpecification.setAccessible(true);
-
-        var specification = (org.springframework.data.jpa.domain.Specification<ValidationMapEntity>)
-                buildSpecification.invoke(jpaRepository, "SUB", "123456", "A");
+        var specification = getValidationMapEntitySpecification(repository, subtypeRepository, validationRepository);
 
         Root<ValidationMapEntity> root = mock(Root.class);
         CriteriaQuery<?> query = mock(CriteriaQuery.class);
@@ -75,17 +70,28 @@ class JpaSpecificationAndPlanErrorTests {
     }
 
     @SuppressWarnings("unchecked")
+    private static Specification<ValidationMapEntity> getValidationMapEntitySpecification(
+            ValidationMapJpaRepository repository,
+            SubtypeJpaRepository subtypeRepository,
+            ValidationJpaRepository validationRepository
+    ) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+
+        JpaValidationMapRepository jpaRepository = new JpaValidationMapRepository(
+                repository, subtypeRepository, validationRepository, new NoOpTransactionManager());
+
+        Method buildSpecification = JpaValidationMapRepository.class
+                .getDeclaredMethod("buildSpecification", String.class, String.class, String.class);
+        buildSpecification.setAccessible(true);
+
+        return (Specification<ValidationMapEntity>)
+                buildSpecification.invoke(jpaRepository, "SUB", "123456", "A");
+    }
+
+    @SuppressWarnings("unchecked")
     @Test
     void commercePlanBuildSpecificationAddsStatusAndSearchFilters() throws Exception {
         CommercePlanJpaRepository repository = mock(CommercePlanJpaRepository.class);
-        JpaCommercePlanRepository commercePlanRepository = new JpaCommercePlanRepository(repository, new NoOpTransactionManager());
-
-        Method buildSpecification = JpaCommercePlanRepository.class
-                .getDeclaredMethod("buildSpecification", String.class, String.class);
-        buildSpecification.setAccessible(true);
-
-        var specification = (org.springframework.data.jpa.domain.Specification<CommercePlanEntity>)
-                buildSpecification.invoke(commercePlanRepository, "A", " plan ");
+        var specification = getCommercePlanEntitySpecification(repository);
 
         Root<CommercePlanEntity> root = mock(Root.class);
         CriteriaQuery<?> query = mock(CriteriaQuery.class);
@@ -123,6 +129,22 @@ class JpaSpecificationAndPlanErrorTests {
         verify(cb).or(codeLikePredicate, nameLikePredicate);
     }
 
+    @SuppressWarnings("unchecked")
+    private static Specification<CommercePlanEntity> getCommercePlanEntitySpecification(
+            CommercePlanJpaRepository repository
+    ) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+
+        JpaCommercePlanRepository commercePlanRepository =
+                new JpaCommercePlanRepository(repository, new NoOpTransactionManager());
+
+        Method buildSpecification = JpaCommercePlanRepository.class
+                .getDeclaredMethod("buildSpecification", String.class, String.class);
+        buildSpecification.setAccessible(true);
+
+        return (Specification<CommercePlanEntity>)
+                buildSpecification.invoke(commercePlanRepository, "A", " plan ");
+    }
+
     @Test
     void detectsPlanCodeLengthErrorsAcrossCauseChain() throws Exception {
         CommercePlanJpaRepository repository = mock(CommercePlanJpaRepository.class);
@@ -141,23 +163,24 @@ class JpaSpecificationAndPlanErrorTests {
     }
 
     private static class NoOpTransactionManager extends AbstractPlatformTransactionManager {
+        @NotNull
         @Override
         protected Object doGetTransaction() {
             return new Object();
         }
 
         @Override
-        protected void doBegin(Object transaction, TransactionDefinition definition) {
+        protected void doBegin(@NotNull Object transaction, @NotNull TransactionDefinition definition) {
             // no-op
         }
 
         @Override
-        protected void doCommit(DefaultTransactionStatus status) {
+        protected void doCommit(@NotNull DefaultTransactionStatus status) {
             // no-op
         }
 
         @Override
-        protected void doRollback(DefaultTransactionStatus status) {
+        protected void doRollback(@NotNull DefaultTransactionStatus status) {
             // no-op
         }
     }

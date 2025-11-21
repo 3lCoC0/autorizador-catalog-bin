@@ -16,9 +16,6 @@ import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 class BinHandlerTest {
@@ -47,8 +44,15 @@ class BinHandlerTest {
         try {
             var method = BinRouter.class.getDeclaredMethod("routes");
             method.setAccessible(true);
-            client = WebTestClient.bindToRouterFunction((RouterFunction<ServerResponse>) method.invoke(router))
-                    .configureClient().baseUrl("/").build();
+
+            @SuppressWarnings("unchecked")
+            RouterFunction<ServerResponse> routes =
+                    (RouterFunction<ServerResponse>) method.invoke(router);
+
+            client = WebTestClient.bindToRouterFunction(routes)
+                    .configureClient()
+                    .baseUrl("/")
+                    .build();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

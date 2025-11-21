@@ -104,7 +104,7 @@ class SubtypeDomainTest {
     void constructorValidationsRejectInvalidData(String code, String bin, String name, String desc, String status) {
         assertThrows(IllegalArgumentException.class, () ->
                 new Subtype(code, bin, name, desc, status,
-                        null, null, null, bin == null ? null : bin, 1L,
+                        null, null, null, bin, 1L,
                         OffsetDateTime.now(), OffsetDateTime.now(), null));
     }
 

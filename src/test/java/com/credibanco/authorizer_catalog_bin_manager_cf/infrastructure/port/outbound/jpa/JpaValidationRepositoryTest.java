@@ -7,35 +7,34 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.outb
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.port.outbound.jpa.repository.ValidationJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
-import org.springframework.transaction.support.DefaultTransactionStatus;
+
 
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.transaction.support.SimpleTransactionStatus;
 import reactor.test.StepVerifier;
-
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 class JpaValidationRepositoryTest {
 
     private ValidationJpaRepository springRepository;
-    private PlatformTransactionManager tm;
     private JpaValidationRepository repo;
 
     @BeforeEach
     void setup() {
         springRepository = mock(ValidationJpaRepository.class);
-        tm = mock(PlatformTransactionManager.class);
+        PlatformTransactionManager tm = mock(PlatformTransactionManager.class);
         when(tm.getTransaction(any(TransactionDefinition.class)))
-                .thenReturn(new DefaultTransactionStatus(null, false, false, false, false, null));
+                .thenReturn(new SimpleTransactionStatus());
         repo = new JpaValidationRepository(springRepository, tm);
     }
 
@@ -96,11 +95,14 @@ class JpaValidationRepositoryTest {
     @Test
     void findAllBuildsSpecificationAndSorts() {
         Validation aggregate = Validation.createNew("CODE", "DESC", ValidationDataType.TEXT, "actor");
-        when(springRepository.findAll(any(Specification.class), eq(PageRequest.of(0, 5, Sort.by("code").ascending()))))
-                .thenReturn(new PageImpl<>(List.of(ValidationJpaMapper.toEntity(aggregate))));
+
+        when(springRepository.findAll(
+                ArgumentMatchers.<Specification<ValidationEntity>>any(),
+                eq(PageRequest.of(0, 5, Sort.by("code").ascending()))
+        )).thenReturn(new PageImpl<>(List.of(ValidationJpaMapper.toEntity(aggregate))));
 
         StepVerifier.create(repo.findAll("A", "cod", 0, 5).collectList())
-                .expectNextMatches(list -> list.size() == 1 && list.get(0).code().equals("CODE"))
+                .expectNextMatches(list -> list.size() == 1 && list.getFirst().code().equals("CODE"))
                 .verifyComplete();
     }
 

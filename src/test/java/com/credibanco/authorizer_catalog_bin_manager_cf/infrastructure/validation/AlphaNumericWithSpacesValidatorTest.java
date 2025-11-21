@@ -27,8 +27,9 @@ class AlphaNumericWithSpacesValidatorTest {
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             public Class<? extends jakarta.validation.Payload>[] payload() {
-                return new Class[0];
+                return (Class<? extends jakarta.validation.Payload>[]) new Class<?>[0];
             }
 
             @Override

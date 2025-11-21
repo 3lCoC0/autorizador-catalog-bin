@@ -7,15 +7,14 @@ import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception
 import com.credibanco.authorizer_catalog_bin_manager_cf.infrastructure.exception.AppException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class AgencyQueryServicesTest {
@@ -31,7 +30,9 @@ class AgencyQueryServicesTest {
         repo = mock(AgencyRepository.class);
         subtypeRepo = mock(SubtypeReadOnlyRepository.class);
         tx = mock(TransactionalOperator.class);
-        when(tx.transactional(any(Mono.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        when(tx.transactional(ArgumentMatchers.<Mono<Agency>>any()))
+                .thenAnswer(inv -> inv.getArgument(0));
 
         agency = Agency.createNew("SUB", "01", "Main", null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null, null, "creator");
@@ -43,7 +44,7 @@ class AgencyQueryServicesTest {
 
         StepVerifier.create(service.execute("SUB", "A", null, -1, 0))
                 .expectErrorSatisfies(err -> {
-                    assertTrue(err instanceof AppException);
+                    assertInstanceOf(AppException.class, err);
                     assertEquals(AppError.AGENCY_INVALID_DATA, ((AppException) err).getError());
                 })
                 .verify();
@@ -69,7 +70,7 @@ class AgencyQueryServicesTest {
 
         StepVerifier.create(service.execute("SUB", null, null, 0, 5))
                 .expectErrorSatisfies(err -> {
-                    assertTrue(err instanceof AppException);
+                    assertInstanceOf(AppException.class, err);
                     assertEquals(AppError.SUBTYPE_NOT_FOUND, ((AppException) err).getError());
                 })
                 .verify();
@@ -95,7 +96,7 @@ class AgencyQueryServicesTest {
 
         StepVerifier.create(service.execute("SUB", "01"))
                 .expectErrorSatisfies(err -> {
-                    assertTrue(err instanceof AppException);
+                    assertInstanceOf(AppException.class, err);
                     assertEquals(AppError.SUBTYPE_NOT_FOUND, ((AppException) err).getError());
                 })
                 .verify();
@@ -109,7 +110,7 @@ class AgencyQueryServicesTest {
 
         StepVerifier.create(service.execute("SUB", "99"))
                 .expectErrorSatisfies(err -> {
-                    assertTrue(err instanceof AppException);
+                    assertInstanceOf(AppException.class, err);
                     assertEquals(AppError.AGENCY_NOT_FOUND, ((AppException) err).getError());
                 })
                 .verify();
@@ -134,7 +135,7 @@ class AgencyQueryServicesTest {
 
         StepVerifier.create(service.execute("SUB", "01", "A", "actor"))
                 .expectErrorSatisfies(err -> {
-                    assertTrue(err instanceof AppException);
+                    assertInstanceOf(AppException.class, err);
                     assertEquals(AppError.SUBTYPE_NOT_FOUND, ((AppException) err).getError());
                 })
                 .verify();
@@ -167,7 +168,7 @@ class AgencyQueryServicesTest {
 
         StepVerifier.create(service.execute("SUB", "01", "A", "actor"))
                 .expectErrorSatisfies(err -> {
-                    assertTrue(err instanceof AppException);
+                    assertInstanceOf(AppException.class, err);
                     assertEquals(AppError.AGENCY_INVALID_DATA, ((AppException) err).getError());
                 })
                 .verify();
@@ -181,7 +182,7 @@ class AgencyQueryServicesTest {
 
         StepVerifier.create(service.execute("SUB", "01", "A", "actor"))
                 .expectErrorSatisfies(err -> {
-                    assertTrue(err instanceof AppException);
+                    assertInstanceOf(AppException.class, err);
                     assertEquals(AppError.AGENCY_NOT_FOUND, ((AppException) err).getError());
                 })
                 .verify();
